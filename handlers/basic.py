@@ -8,27 +8,30 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Rich Welcome message with Buttons for Shariar Tech Bot."""
     user = update.effective_user
     
-    # Professional Greeting
+    # Bilingual Welcome
     welcome_text = (
-        f"👋 *Hi {user.first_name}! I am the Shariar Tech Bot.*\n\n"
-        "I'm a modular assistant designed to help you with AI tasks and shopping.\n\n"
-        "🚀 *My Current Functions:*\n"
-        "🤖 **AI Chat:** Just talk to me normally!\n"
-        "🎨 **AI Art:** Use `/image` to create visuals.\n"
-        "🛒 **Daraz Finder:** Use `/find` to track prices.\n"
-        "🌤️ **Weather:** Use `/weather` to check any city.\n\n"
-        "👇 *Quick Actions:* "
+        f"👋 *Hi {user.first_name}! I am the Shariar Tech Bot.*\n"
+        "আমি একটি মাল্টি-ফাংশনাল এআই সহকারী।\n\n"
+        "🚀 *My Functions (আমার কাজ):*\n"
+        "🤖 **AI Chat (চ্যাট):** Just talk to me normally!\n"
+        "🎨 **AI Art (ছবি):** Use `/image` (ভাবো) to create art.\n"
+        "🛒 **Daraz (শপিং):** Use `/find` (খুঁজো) for deals.\n"
+        "🎙️ **Voice (বলো):** Use `/say` (বলো) for TTS.\n\n"
+        "👇 *Quick Actions (দ্রুত কাজ):* "
     )
 
-    # Creating the Button Grid
+    # Creating the Bilingual Button Grid
     keyboard = [
         [
-            InlineKeyboardButton("🎨 Create AI Art", callback_data='help_image'),
-            InlineKeyboardButton("🛒 Find Best Deal", callback_data='help_find')
+            InlineKeyboardButton("🎨 ভাবো | Art", callback_data='help_image'),
+            InlineKeyboardButton("🛒 খুঁজো | Deals", callback_data='help_find')
         ],
         [
-            InlineKeyboardButton("🌤️ Check Weather", callback_data='help_weather'),
-            InlineKeyboardButton("📜 View All Commands", callback_data='help_main')
+            InlineKeyboardButton("🎙️ বলো | Voice", callback_data='help_tts'),
+            InlineKeyboardButton("🌤️ আবহাওয়া | Weather", callback_data='help_weather')
+        ],
+        [
+            InlineKeyboardButton("📜 সব কমান্ড | Instructions", callback_data='help_main')
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -79,8 +82,24 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         message = "🛒 **Daraz Deal Finder**\n\nTo find deals, use:\n`/find <product>`\n\nExample: `/find gaming mouse`"
     elif query.data == 'help_weather':
         message = "🌤️ **Live Weather Check**\n\nTo check the weather, use:\n`/weather <city name>`\n\nExample: `/weather Tokyo`"
+    elif query.data == 'help_tts':
+        message = (
+            "🎙️ **Natural Text to Speech**\n\n"
+            "Produce clear, neural voice messages:\n\n"
+            "👨 **Boy Voice:** `/say <text>`\n"
+            "👩 **Girl Voice:** `/say_as_girl <text>`\n\n"
+            "Example: `/say আমার নাম লুসিফার`"
+        )
     elif query.data == 'help_main':
-        message = "📜 **All Commands**\n\n• /start - Main menu\n• /image <prompt> - AI Art\n• /find <product> - Daraz Deals\n• /weather <city> - Live Weather"
+        message = (
+            "📜 **All Commands**\n\n"
+            "• /start - Main menu\n"
+            "• /image <prompt> - AI Art\n"
+            "• /find <product> - Daraz Deals\n"
+            "• /weather <city> - Live Weather\n"
+            "• /say <text> - Boy Voice\n"
+            "• /say_as_girl <text> - Girl Voice"
+        )
     else:
         message = "Unknown action."
         

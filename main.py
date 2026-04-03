@@ -8,6 +8,7 @@ from handlers.basic import start_command, handle_message, button_callback
 from handlers.image_gen import generate_image_command
 from handlers.daraz_handler import find_deal_command
 from handlers.weather import weather_command
+from handlers.tts import say_male_command, say_female_command
 from handlers.debug import debug_command, toggle_api_command
 from utils.logger import get_logger
 
@@ -41,15 +42,13 @@ def start_health_server():
 
 
 async def post_init(application: Application):
-    """
-    This function sets up the 'Menu' button in the Telegram UI 
-    so users always see available commands.
-    """
+    """Sets the Telegram Menu button commands with bilingual descriptions."""
     commands = [
-        ("start", "🏠 Open Main Menu"),
-        ("image", "🎨 Generate AI Art"),
-        ("find", "🛒 Find Daraz Deals"),
-        ("weather", "🌤️ Check Weather"),
+        ("start", "🏠 শুরু | Start Bot"),
+        ("image", "🎨 ভাবো | AI Art"),
+        ("find", "🛒 খুঁজো | Find Deals"),
+        ("say", "👨 বলো | Boy Voice"),
+        ("say_as_girl", "👩 মেয়ের মত বলো | Girl Voice"),
     ]
     await application.bot.set_my_commands(commands)
 
@@ -66,19 +65,29 @@ def main():
     # Build the application and include the Menu setup
     app = Application.builder().token(Config.TELEGRAM_TOKEN).post_init(post_init).build()
 
-    # 1. Command Handlers
+    # --- 1. English Command Handlers ---
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CommandHandler("image", generate_image_command))
     app.add_handler(CommandHandler("find", find_deal_command))
     app.add_handler(CommandHandler("weather", weather_command))
+    app.add_handler(CommandHandler("say", say_male_command))
+    app.add_handler(CommandHandler("say_as_girl", say_female_command))
 
-    # 2. Button Click Handler
+    # --- 2. Bangla Alias Handlers ---
+    # These catch commands written in Bangla characters
+    app.add_handler(MessageHandler(filters.Regex(r'^/শুরু'), start_command))
+    app.add_handler(MessageHandler(filters.Regex(r'^/ভাবো'), generate_image_command))
+    app.add_handler(MessageHandler(filters.Regex(r'^/খুঁজো'), find_deal_command))
+    app.add_handler(MessageHandler(filters.Regex(r'^/বলো'), say_male_command))
+    app.add_handler(MessageHandler(filters.Regex(r'^/মেয়ের[\s_]মত[\s_]বলো'), say_female_command))
+
+    # --- 3. UI & Message Handlers ---
     app.add_handler(CallbackQueryHandler(button_callback))
+    
+    # Handle standard AI messages (including photos for Vision!)
+    app.add_handler(MessageHandler((filters.TEXT | filters.PHOTO) & ~filters.COMMAND & ~filters.Regex(r'^/'), handle_message))
 
-    # 3. Handle standard AI messages (including photos for Vision!)
-    app.add_handler(MessageHandler((filters.TEXT | filters.PHOTO) & ~filters.COMMAND, handle_message))
-
-    # 4. Admin Debug Commands
+    # --- 4. Admin Debug Commands ---
     app.add_handler(CommandHandler("debug", debug_command))
     app.add_handler(MessageHandler(filters.Regex(r'^/debug_turn_(groq|pollinations|daraz)_(on|off)'), toggle_api_command))
 

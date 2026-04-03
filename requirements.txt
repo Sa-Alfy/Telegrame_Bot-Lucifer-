@@ -4,3 +4,4 @@ requests
 groq
 cloudscraper
 beautifulsoup4
+edge-tts
