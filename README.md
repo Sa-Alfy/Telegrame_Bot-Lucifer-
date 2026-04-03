@@ -1,22 +1,22 @@
-# 🤖 Lucifer — AI-Powered Telegram Bot
+# Lucifer — AI-Powered Telegram Bot
 
 A modular, multi-feature Telegram bot built with Python. Lucifer combines AI chat, image generation, deal hunting, and live weather — all in one bot.
 
 ---
 
-## ✨ Features
+## Features
 
 | Feature | Description |
 |:---|:---|
-| 🧠 **AI Chat (Vision)** | Chat with Llama 4 Scout via Groq — supports text AND image analysis |
-| 🎨 **AI Image Generation** | Generate stunning AI art with Stable Diffusion XL via Hugging Face |
-| 🛒 **Daraz Deal Finder** | Search for the best product deals on Daraz.com.bd |
-| 🌤️ **Live Weather** | Check real-time weather for any city worldwide |
-| 🛠️ **Admin Debug Panel** | Monitor API health, uptime, and toggle services on/off |
+| **AI Chat (Vision)** | Chat with Llama 4 Scout via Groq — supports text AND image analysis |
+| **AI Image Generation** | Generate stunning AI art with Stable Diffusion XL via Hugging Face |
+| **Daraz Deal Finder** | Search for the best product deals on Daraz.com.bd |
+| **Live Weather** | Check real-time weather for any city worldwide |
+| **Admin Debug Panel** | Monitor API health, uptime, and toggle services on/off |
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 my_telegram_bot/
@@ -46,7 +46,7 @@ my_telegram_bot/
 
 ---
 
-## 🚀 Quick Start (Local)
+## Quick Start (Local)
 
 ### 1. Clone the Repository
 
@@ -87,7 +87,7 @@ Open `.env` and fill in your real API keys:
 | `GROQ_API_KEY` | [console.groq.com](https://console.groq.com/) |
 | `IMAGE_GEN_KEY` | [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) |
 | `OPENWEATHERMAP_API_KEY` | [openweathermap.org/api](https://openweathermap.org/api) |
-| `ADMIN_ID` | Send `/debug` to your bot to see your Telegram User ID |
+| `ADMIN_ID` | Send /debug to your bot to see your Telegram User ID |
 | `GEMINI_API_KEY` | [aistudio.google.com](https://aistudio.google.com/apikey) (optional) |
 
 ### 5. Run the Bot
@@ -98,43 +98,44 @@ python main.py
 
 ---
 
-## ☁️ Deploy to Koyeb (Free, 24/7)
+## Deploy to Koyeb (Free, 24/7)
 
 Koyeb provides free hosting with no credit card needed.
 
 ### Step 1: Push to GitHub
-Make sure your code is on GitHub (your `.env` is safely excluded by `.gitignore`).
+Make sure your code is on GitHub (your .env is safely excluded by .gitignore).
 
 ### Step 2: Create a Koyeb Account
 Sign up at [koyeb.com](https://www.koyeb.com/) — no credit card required.
 
 ### Step 3: Create a New Service
-1. Click **"Create Service"** → **"GitHub"**
+1. Click "Create Service" → "GitHub"
 2. Connect your GitHub account and select this repository
-3. Set the **Builder** to `Buildpack`
-4. Set the **Run command** to `python main.py`
-5. Set the **Port** to `8000`
+3. Set the Builder to Buildpack
+4. Set the Run command to python main.py
+5. Set the Port to 8000
 
 ### Step 4: Add Environment Variables
-In the Koyeb service settings, add each key from `.env.example` as an environment variable. **Never paste keys in code — always use the dashboard.**
+In the Koyeb service settings, add each key from .env.example as an environment variable. Never paste keys in code — always use the dashboard.
 
 ### Step 5: Deploy
-Click **Deploy** — Koyeb will build and start your bot automatically. It runs 24/7.
+Click Deploy — Koyeb will build and start your bot automatically. It runs 24/7.
 
 ---
 
-## 🔒 Security
+## Security
 
-- All API keys are loaded from environment variables (`.env`) — never hardcoded.
-- `.env` is excluded from Git via `.gitignore` — it will never be uploaded.
-- Admin commands (`/debug`, toggle APIs) are protected by `ADMIN_ID` verification.
-- When deploying, always use the hosting platform's **Environment Variables** dashboard.
+- All API keys are loaded from environment variables (.env) — never hardcoded.
+- .env is excluded from Git via .gitignore — it will never be uploaded.
+- Admin commands (/debug, toggle APIs) are protected by ADMIN_ID verification.
+- When deploying, always use the hosting platform's Environment Variables dashboard.
 
-> ⚠️ **NEVER** commit your `.env` file to GitHub. If you accidentally do, **immediately regenerate all your API keys**.
+> [!IMPORTANT]
+> **NEVER** commit your .env file to GitHub. If you accidentally do, **immediately regenerate all your API keys**.
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - **Language:** Python 3.10+
 - **Bot Framework:** [python-telegram-bot](https://github.com/python-telegram-bot/python-telegram-bot)
@@ -145,6 +146,6 @@ Click **Deploy** — Koyeb will build and start your bot automatically. It runs 
 
 ---
 
-## 📜 License
+## License
 
 This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
