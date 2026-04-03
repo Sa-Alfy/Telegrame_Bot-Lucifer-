@@ -1,0 +1,69 @@
+import requests
+import os
+import tempfile
+import asyncio
+import functools
+from telegram import Update
+from telegram.ext import ContextTypes
+from services.image_gen import generate_image_bytes
+from state import API_STATE
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+async def generate_image_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Generates an image when the user types /image <prompt>"""
+    
+    if not API_STATE.get("pollinations", True):
+        await update.message.reply_text("🎨 Image generation is currently disabled by the Admin. Please try again later.")
+        return
+        
+    # Check if the user provided a prompt
+    if not context.args:
+        await update.message.reply_text(
+            "Please provide a prompt! Example: `/image a futuristic city`", 
+            parse_mode="Markdown"
+        )
+        return
+        
+    # Join ingredients into a single prompt string
+    prompt = " ".join(context.args)
+    
+    # Send a placeholder message to show progress
+    status_msg = await update.message.reply_text("🎨 Generating your image... please wait a moment.")
+    
+    # Visual feedback in Telegram (shows "uploading photo...")
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="upload_photo")
+    
+    try:
+        # We process the generation in a separate thread so the bot doesn't freeze
+        loop = asyncio.get_running_loop()
+        image_bytes = await loop.run_in_executor(
+            None, 
+            functools.partial(generate_image_bytes, prompt)
+        )
+        
+        # Save the image bytes to a temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
+            tmp.write(image_bytes)
+            tmp_path = tmp.name
+        
+        # File handle is now FULLY released — safe to open and send on Windows
+        with open(tmp_path, 'rb') as photo:
+            await update.message.reply_photo(
+                photo=photo,
+                caption=f"✨ Prompt: {prompt}"
+            )
+        
+        # Safely delete the temp file — ignore if Windows still has a lock on it
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass
+
+        # Delete the "Generating..." status message
+        await status_msg.delete()
+        
+    except Exception as e:
+        logger.error(f"Image Gen Error: {e}")
+        await update.message.reply_text(f"❌ Failed to generate image.\n\n**Reason:** `{e}`", parse_mode="Markdown")
