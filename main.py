@@ -16,7 +16,7 @@ from handlers.image_gen import generate_image_command
 from handlers.daraz_handler import find_deal_command
 from handlers.weather import weather_command
 from handlers.tts import say_male_command, say_female_command
-from handlers.debug import debug_command, toggle_api_command
+from handlers.debug import debug_command, toggle_api_command, what_type_command
 from handlers.persona import persona_command, persona_callback
 from handlers.translate import translate_command
 from handlers.voice_input import handle_voice_message
@@ -182,6 +182,7 @@ def main():
 
     # --- 6. Admin Debug Commands ---
     app.add_handler(CommandHandler("debug", debug_command))
+    app.add_handler(CommandHandler("what_type", what_type_command))
     app.add_handler(
         MessageHandler(
             filters.Regex(r"^/debug_turn_(groq|pollinations|daraz)_(on|off)"),

@@ -9,6 +9,7 @@ from datetime import timedelta
 from telegram import Update
 from telegram.ext import ContextTypes
 from config import Config
+from utils.constants import GROQ_CHAT_MODELS, FLUX_HF_MODEL
 
 # Record the start time when this module is loaded
 START_TIME = time.time()
@@ -53,6 +54,52 @@ async def toggle_api_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
         f"⚙️ {status_icon} Override: API <b>{api_name.capitalize()}</b> is now <b>{action.upper()}</b>.",
         parse_mode="HTML",
     )
+
+async def what_type_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Debug command to check active models and limits.
+    Only accessible by the Admin.
+    Usage: /what_type /image or /what_type /text
+    """
+    user_id = str(update.effective_user.id)
+    if user_id != Config.ADMIN_ID:
+        await update.message.reply_text("⛔ **Access Denied:** Only the Admin can use this diagnostic command.", parse_mode="Markdown")
+        return
+
+    args = context.args
+    if not args:
+        await update.message.reply_text(
+            "🛠️ **Diagnostic Tool Usage:**\n"
+            "Use `/what_type /image` to check the active Image Generator.\n"
+            "Use `/what_type /text` to check the active Text LLMs.",
+            parse_mode="Markdown"
+        )
+        return
+
+    module_type = args[0].lower()
+    
+    if module_type == "/image" or module_type == "image":
+        response = (
+            "🖼️ **Image Model Diagnostic**\n\n"
+            f"**Current Model:** `{FLUX_HF_MODEL}`\n"
+            "**Provider:** Hugging Face Serverless via Pollinations\n"
+            "**Limit:** Unlimited Free Tier (Rate limit: ~1 request per 10-15 seconds for stability)\n"
+            "**Max Resolution:** 1024x1024"
+        )
+        await update.message.reply_text(response, parse_mode="Markdown")
+        
+    elif module_type == "/text" or module_type == "text":
+        response = (
+            "📝 **Text AI Diagnostic**\n\n"
+            f"**Primary Model:** `{GROQ_CHAT_MODELS[0]}`\n"
+            f"**Fallback Model:** `{GROQ_CHAT_MODELS[1]}` (if Primary fails)\n"
+            "**Provider:** Groq API\n"
+            "**Limit:** ~6,000 Tokens Per Minute (Free Tier threshold). Memory is auto-truncated if 413 error occurs."
+        )
+        await update.message.reply_text(response, parse_mode="Markdown")
+        
+    else:
+        await update.message.reply_text("❌ Unknown module. Please specify `/image` or `/text`.", parse_mode="Markdown")
 
 
 async def debug_command(update: Update, context: ContextTypes.DEFAULT_TYPE):

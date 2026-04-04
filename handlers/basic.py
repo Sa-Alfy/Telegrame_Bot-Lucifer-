@@ -257,10 +257,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             response = f"🔧 Error: {str(e)}"
             await sent_message.edit_text(response)
 
-    # Update conversation memory
-    chat_history.append({"role": "user", "content": user_text})
-    chat_history.append({"role": "assistant", "content": response})
-    context.user_data["chat_history"] = chat_history[-MAX_HISTORY:]
+    # Update conversation memory ONLY if it wasn't an API crash
+    if not response.startswith("🔧 Error:") and not response.startswith("❌ All Chat models are currently down") and "Request too large" not in response:
+        chat_history.append({"role": "user", "content": user_text})
+        chat_history.append({"role": "assistant", "content": response})
+        context.user_data["chat_history"] = chat_history[-MAX_HISTORY:]
 
 
 async def clear_history_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
