@@ -1,4 +1,3 @@
-import requests
 import os
 import tempfile
 import asyncio
@@ -7,10 +6,13 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from services.image_gen import generate_image_bytes
 from state import API_STATE
+from utils.decorators import rate_limit
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
+
+@rate_limit(seconds=15)
 async def generate_image_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Generates an image when the user types /image <prompt>"""
     
@@ -21,8 +23,8 @@ async def generate_image_command(update: Update, context: ContextTypes.DEFAULT_T
     # Check if the user provided a prompt
     if not context.args:
         await update.message.reply_text(
-            "Please provide a prompt! Example: `/image a futuristic city`", 
-            parse_mode="Markdown"
+            "Please provide a prompt! Example: <code>/image a futuristic city</code>", 
+            parse_mode="HTML"
         )
         return
         
@@ -66,4 +68,7 @@ async def generate_image_command(update: Update, context: ContextTypes.DEFAULT_T
         
     except Exception as e:
         logger.error(f"Image Gen Error: {e}")
-        await update.message.reply_text(f"❌ Failed to generate image.\n\n**Reason:** `{e}`", parse_mode="Markdown")
+        await update.message.reply_text(
+            f"❌ Failed to generate image.\n\n<b>Reason:</b> <code>{e}</code>",
+            parse_mode="HTML",
+        )

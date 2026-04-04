@@ -5,3 +5,8 @@ groq
 cloudscraper
 beautifulsoup4
 edge-tts
+qrcode[pil]
+httpx
+duckduckgo-search
+google-genai
+yt-dlp
