@@ -1,6 +1,11 @@
 # ── Bot Constants ─────────────────────────────────────────────
 MAX_HISTORY = 20  # Max messages per user in conversation memory
 
+# ── Branding & Developer ──────────────────────────────────────
+DEVELOPER_NAME = "Shariar Ahamed"
+GITHUB_URL = "https://github.com/Sa-Alfy"
+ASSET_PROFILE_PICTURE = "assets/profile picture.png"
+
 # ── Model Registry (Source of Truth) ──────────────────────────
 
 # Gemini Vision Models (Fallback order)

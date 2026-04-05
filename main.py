@@ -11,17 +11,18 @@ from telegram.ext import (
     ContextTypes,
 )
 from config import Config
-from handlers.basic import start_command, handle_message, button_callback, back_to_start_callback, help_command, clear_history_command
+from handlers.basic import start_command, handle_message, button_callback, back_to_start_callback, help_command, clear_history_command, developer_callback, category_callback
 from handlers.image_gen import generate_image_command
 from handlers.daraz_handler import find_deal_command
 from handlers.weather import weather_command
 from handlers.tts import say_male_command, say_female_command
 from handlers.debug import debug_command, toggle_api_command, what_type_command
+from handlers.admin import admin_command, admin_callback
 from handlers.persona import persona_command, persona_callback
 from handlers.translate import translate_command
 from handlers.voice_input import handle_voice_message
 from handlers.qr import qr_command
-from handlers.currency import convert_command
+from handlers.currency import convert_command, bdt_command
 from handlers.quiz import quiz_command, quiz_answer_callback
 from handlers.ocr import ocr_command
 from handlers.download import download_command, download_callback
@@ -29,7 +30,15 @@ from handlers.news import news_command
 from handlers.sticker import sticker_command
 from handlers.games import play_command, stopgame_command, game_callback
 from handlers.profile import profile_command
+# ── New Feature Imports ──
+from handlers.reminder import remind_command, reminder_callback, my_reminders_command
+from handlers.vote import vote_command, vote_callback, poll_command, poll_callback
+from handlers.ai_tools import explain_command, summarize_command, rewrite_command
+from handlers.prayer import prayer_command
+from handlers.mobile import mobile_command, mobile_callback
+from services.reminder_service import reminder_store
 from utils.logger import get_logger
+from utils.decorators import enforce_moderation
 
 logger = get_logger(__name__)
 
@@ -76,29 +85,33 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def post_init(application: Application):
-    """Sets the Telegram Menu button commands with bilingual descriptions."""
+    """Sets the Telegram Menu button commands and restores pending reminders."""
     commands = [
         ("start", "🏠 শুরু | Start Bot"),
         ("image", "🎨 ভাবো | AI Art"),
         ("find", "🛒 খুঁজো | Find Deals"),
         ("weather", "🌤️ আবহাওয়া | Weather"),
         ("say", "👨 বলো | Boy Voice"),
-        ("say_as_girl", "👩 মেয়ের মত বলো | Girl Voice"),
         ("translate", "🌐 অনুবাদ | Translate"),
         ("convert", "💱 রূপান্তর | Currency"),
-        ("qr", "📱 QR Code"),
-        ("quiz", "🧩 কুইজ | Quiz"),
-        ("ocr", "📄 OCR | Text Extract"),
-        ("sticker", "🖼️ স্টিকার | Sticker Maker"),
+        ("bdt", "🇺🇸🇧🇩 USD→BDT Rate"),
         ("news", "📰 খবর | Daily News"),
-        ("persona", "🎭 ব্যক্তিত্ব | AI Persona"),
-        ("download", "📥 ডাউনলোড | Download Media"),
-        ("play", "🎲 খেলো | Interactive Games"),
-        ("me", "📊 প্রোফাইল | My Profile"),
-        ("clear", "🗑️ মুছো | Clear History"),
+        ("prayer", "🕌 নামাজ | Prayer Times"),
+        ("offers", "📱 অফার | Mobile Offers"),
+        ("remind", "⏰ রিমাইন্ড | Reminder"),
+        ("vote", "🗳️ ভোট | Quick Vote"),
+        ("poll", "📊 পোল | Group Poll"),
+        ("explain", "💡 ব্যাখ্যা | Explain"),
+        ("quiz", "🧩 কুইজ | Quiz"),
+        ("play", "🎲 খেলো | Games"),
+        ("download", "📥 ডাউনলোড | Download"),
+        ("me", "📊 প্রোফাইল | Profile"),
         ("help", "❓ সাহায্য | Help"),
     ]
     await application.bot.set_my_commands(commands)
+    
+    # Restore pending reminders from disk
+    reminder_store.schedule_all(application)
 
 
 def main():
@@ -122,6 +135,7 @@ def main():
         """
         pattern = r"^(?:@\w+\s+)?/(" + "|".join(commands) + r")(?:\s+|$)"
         
+        @enforce_moderation()
         async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if context.args is None:
                 text = update.message.text or update.message.caption or ""
@@ -155,8 +169,24 @@ def main():
     app.add_handler(create_universal_handler(["me", "আমি"], profile_command))
     app.add_handler(create_universal_handler(["clear", "মুছো"], clear_history_command))
 
+    # --- NEW: Group Assistant Commands ---
+    app.add_handler(create_universal_handler(["remind", "রিমাইন্ড"], remind_command))
+    app.add_handler(create_universal_handler(["myreminders"], my_reminders_command))
+    app.add_handler(create_universal_handler(["vote", "ভোট"], vote_command))
+    app.add_handler(create_universal_handler(["poll", "পোল"], poll_command))
+    app.add_handler(create_universal_handler(["explain", "ব্যাখ্যা"], explain_command))
+    app.add_handler(create_universal_handler(["summarize", "সারাংশ"], summarize_command))
+    app.add_handler(create_universal_handler(["rewrite", "পুনর্লিখন"], rewrite_command))
+    app.add_handler(create_universal_handler(["prayer", "নামাজ"], prayer_command))
+    app.add_handler(create_universal_handler(["offers", "অফার"], mobile_command))
+    app.add_handler(create_universal_handler(["bdt"], bdt_command))
+
     # --- 3. UI & Callback Handlers ---
-    # Persona callback (must come before the generic button_callback)
+    # Category navigation (must come before other callbacks)
+    app.add_handler(CallbackQueryHandler(category_callback, pattern=r"^cat_"))
+    # Admin callback
+    app.add_handler(CallbackQueryHandler(admin_callback, pattern=r"^admin_"))
+    # Persona callback
     app.add_handler(CallbackQueryHandler(persona_callback, pattern=r"^persona_"))
     # Games callback
     app.add_handler(CallbackQueryHandler(game_callback, pattern=r"^game_"))
@@ -164,8 +194,18 @@ def main():
     app.add_handler(CallbackQueryHandler(quiz_answer_callback, pattern=r"^quiz_"))
     # Download quality selection callback
     app.add_handler(CallbackQueryHandler(download_callback, pattern=r"^dl_"))
+    # Reminder callbacks
+    app.add_handler(CallbackQueryHandler(reminder_callback, pattern=r"^rem_"))
+    # Vote callbacks
+    app.add_handler(CallbackQueryHandler(vote_callback, pattern=r"^vote_"))
+    # Poll callbacks
+    app.add_handler(CallbackQueryHandler(poll_callback, pattern=r"^poll_"))
+    # Mobile offers callbacks
+    app.add_handler(CallbackQueryHandler(mobile_callback, pattern=r"^mob"))
     # Back to menu callback
     app.add_handler(CallbackQueryHandler(back_to_start_callback, pattern=r"^back_to_start$"))
+    # Developer info callback
+    app.add_handler(CallbackQueryHandler(developer_callback, pattern=r"^developer_info$"))
     # Generic help button callback
     app.add_handler(CallbackQueryHandler(button_callback, pattern=r"^help_"))
 
@@ -181,6 +221,7 @@ def main():
     )
 
     # --- 6. Admin Debug Commands ---
+    app.add_handler(CommandHandler("admin", admin_command))
     app.add_handler(CommandHandler("debug", debug_command))
     app.add_handler(CommandHandler("what_type", what_type_command))
     app.add_handler(

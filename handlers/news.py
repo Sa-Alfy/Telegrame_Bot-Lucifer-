@@ -2,11 +2,13 @@ import re
 from telegram import Update
 from telegram.ext import ContextTypes
 from services.news_service import get_latest_news
-from utils.decorators import rate_limit
+from utils.decorators import rate_limit, api_enabled
+from utils.cache import news_cache, NEWS_TTL
 from state import track_command
 from utils.format import prepare_telegram_html
 
 @rate_limit(10)
+@api_enabled("news")
 async def news_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Fetch the latest news.
@@ -28,10 +30,17 @@ async def news_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     sent_message = await update.message.reply_text(f"📰 Fetching {title_display}...", parse_mode="HTML")
     
     try:
-        # Run synchronous RSS fetch in background to avoid blocking
-        import asyncio
-        loop = asyncio.get_event_loop()
-        news_items = await loop.run_in_executor(None, lambda: get_latest_news(category, limit=5))
+        # Check cache first
+        cached = news_cache.get(category)
+        if cached:
+            news_items = cached
+        else:
+            # Run synchronous RSS fetch in background to avoid blocking
+            import asyncio
+            loop = asyncio.get_event_loop()
+            news_items = await loop.run_in_executor(None, lambda: get_latest_news(category, limit=5))
+            if news_items:
+                news_cache.set(category, news_items, NEWS_TTL)
         
         if not news_items:
             await sent_message.edit_text("❌ Could not fetch news at the moment. Please try again later.", parse_mode="HTML")

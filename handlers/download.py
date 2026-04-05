@@ -4,7 +4,7 @@ import functools
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from services.downloader import get_media_info, download_media, cleanup_download, _format_size
-from utils.decorators import rate_limit
+from utils.decorators import rate_limit, api_enabled
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -23,6 +23,7 @@ def _format_duration(seconds: int) -> str:
 
 
 @rate_limit(seconds=5)
+@api_enabled("downloader")
 async def download_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     /download <url> — Fetch info and show quality options.

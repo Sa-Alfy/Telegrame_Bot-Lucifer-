@@ -1,4 +1,5 @@
 import asyncio
+import os
 import time
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
@@ -6,92 +7,157 @@ from services.ai_chat import get_ai_response, get_ai_response_stream
 from state import API_STATE, track_user, track_command
 from utils.logger import get_logger
 from utils.format import prepare_telegram_html, clean_markdown_fallback
-from utils.constants import MAX_HISTORY
+from utils.constants import MAX_HISTORY, DEVELOPER_NAME, GITHUB_URL, ASSET_PROFILE_PICTURE
+from utils.decorators import enforce_moderation
+from handlers.intent import detect_intent
+from handlers.reminder import handle_reminder_text
 
 logger = get_logger(__name__)
 
 
-# ── Shared Start Menu Builder ────────────────────────────────
+# ── Categorized Start Menu Builder ───────────────────────────
 def _build_start_menu(user_first_name: str):
     """
-    Single source of truth for the /start welcome text and keyboard.
-    Used by both start_command() and back_to_start_callback().
+    Categorized welcome menu — clean, organized, easy to navigate.
+    Only shows 6 category buttons instead of overwhelming with all features.
     """
     welcome_text = (
-        f"👋 <b>Hi {user_first_name}! I am the Shariar Tech Bot.</b>\n"
-        "আমি একটি মাল্টি-ফাংশনাল এআই সহকারী।\n\n"
-        "🚀 <b>My Features (আমার কাজ):</b>\n"
-        "🤖 <b>AI Chat:</b> Just talk to me!\n"
-        "🎨 <b>AI Art:</b> <code>/image</code> — generate images\n"
-        "🛒 <b>Deals:</b> <code>/find</code> — search Daraz\n"
-        "🎙️ <b>Voice:</b> <code>/say</code> — text to speech\n"
-        "🌐 <b>Translate:</b> <code>/translate</code> — Any language\n"
-        "💱 <b>Currency:</b> <code>/convert</code> — convert money\n"
-        "📱 <b>QR Code:</b> <code>/qr</code> — generate QR codes\n"
-        "🧩 <b>Quiz:</b> <code>/quiz</code> — trivia game\n"
-        "📄 <b>OCR:</b> <code>/ocr</code> — extract text from images\n"
-        "📥 <b>Download:</b> <code>/download</code> — download media\n"
-        "🎭 <b>Persona:</b> <code>/persona</code> — change AI style\n"
-        "🎤 <b>Voice Chat:</b> Send voice messages!\n"
-        "📊 <b>Profile:</b> <code>/me</code> — your stats\n\n"
-        "👇 <b>Quick Actions (দ্রুত কাজ):</b>"
+        f"👋 <b>Hi {user_first_name}! I am Lucifer.</b>\n"
+        "আমি তোমার গ্রুপের AI সহকারী 🤖\n\n"
+        "💬 <b>Just type to chat with me!</b>\n"
+        "Or pick a category below to explore:\n"
     )
 
     keyboard = [
         [
-            InlineKeyboardButton("🎨 ভাবো | Art", callback_data="help_image"),
-            InlineKeyboardButton("🛒 খুঁজো | Deals", callback_data="help_find"),
+            InlineKeyboardButton("🤖 AI Tools", callback_data="cat_ai"),
+            InlineKeyboardButton("🛠️ Utilities", callback_data="cat_utils"),
         ],
         [
-            InlineKeyboardButton("🎙️ বলো | Voice", callback_data="help_tts"),
-            InlineKeyboardButton("🌤️ আবহাওয়া | Weather", callback_data="help_weather"),
+            InlineKeyboardButton("🎮 Games & Fun", callback_data="cat_fun"),
+            InlineKeyboardButton("📱 Local BD", callback_data="cat_local"),
         ],
         [
-            InlineKeyboardButton("🌐 Translate", callback_data="help_translate"),
-            InlineKeyboardButton("💱 Currency", callback_data="help_currency"),
+            InlineKeyboardButton("⏰ Productivity", callback_data="cat_prod"),
+            InlineKeyboardButton("📊 Profile", callback_data="cat_profile"),
         ],
         [
-            InlineKeyboardButton("📱 QR Code", callback_data="help_qr"),
-            InlineKeyboardButton("🧩 Quiz", callback_data="help_quiz"),
-        ],
-        [
-            InlineKeyboardButton("🎭 Persona", callback_data="help_persona"),
-            InlineKeyboardButton("📄 OCR", callback_data="help_ocr"),
-        ],
-        [
-            InlineKeyboardButton("📰 News", callback_data="help_news"),
-            InlineKeyboardButton("🖼️ Sticker Maker", callback_data="help_sticker"),
-        ],
-        [
-            InlineKeyboardButton("📥 Download", callback_data="help_download"),
-            InlineKeyboardButton("🎲 Games", callback_data="help_games"),
-        ],
-        [
-            InlineKeyboardButton("📊 প্রোফাইল | My Profile", callback_data="help_profile"),
-            InlineKeyboardButton("📜 সব কমান্ড | All Commands", callback_data="help_main"),
+            InlineKeyboardButton("👨‍💻 Developer & Credits", callback_data="developer_info"),
         ],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     return welcome_text, reply_markup
 
 
+# ── Category Content Definitions ─────────────────────────────
+CATEGORY_CONTENT = {
+    "cat_ai": {
+        "title": "🤖 <b>AI Tools</b>",
+        "desc": "Intelligent AI-powered features",
+        "buttons": [
+            ("🎨 AI Art Generator", "/image "),
+            ("🎭 AI Persona Switch", "/persona "),
+            ("💡 Explain (Reply)", "/explain"),
+            ("📋 Summarize (Reply)", "/summarize"),
+            ("✍️ Rewrite (Reply)", "/rewrite"),
+            ("📄 OCR Text Extract", "/ocr"),
+            ("🖼️ Sticker Maker", "/sticker "),
+        ],
+    },
+    "cat_utils": {
+        "title": "🛠️ <b>Utilities</b>",
+        "desc": "Useful everyday tools",
+        "buttons": [
+            ("🌤️ Weather", "/weather Dhaka"),
+            ("💱 Currency Convert", "/convert "),
+            ("🇺🇸🇧🇩 USD→BDT Rate", "/bdt "),
+            ("🌐 Translate", "/translate "),
+            ("🎙️ TTS Male Voice", "/say "),
+            ("👩 TTS Female Voice", "/say_as_girl "),
+            ("📱 QR Code", "/qr "),
+            ("📥 Download Media", "/download "),
+        ],
+    },
+    "cat_fun": {
+        "title": "🎮 <b>Games & Fun</b>",
+        "desc": "Play games and challenge yourself",
+        "buttons": [
+            ("🎲 Play Games", "/play"),
+            ("🧩 AI Quiz", "/quiz "),
+            ("🗳️ Quick Vote", "/vote "),
+            ("📊 Create Poll", "/poll "),
+        ],
+    },
+    "cat_local": {
+        "title": "📱 <b>Local Bangladesh</b>",
+        "desc": "Bangladesh-focused tools & info",
+        "buttons": [
+            ("📰 News Headlines", "/news "),
+            ("🇧🇩 BD News", "/news bd"),
+            ("🛒 Daraz Deals", "/find "),
+            ("🕌 Prayer Times", "/prayer"),
+            ("📱 Mobile Offers", "/offers"),
+        ],
+    },
+    "cat_prod": {
+        "title": "⏰ <b>Productivity</b>",
+        "desc": "Stay organized and on track",
+        "buttons": [
+            ("⏰ Set Reminder", "/remind"),
+            ("📋 My Reminders", "/myreminders"),
+            ("🗑️ Clear History", "/clear"),
+        ],
+    },
+    "cat_profile": {
+        "title": "📊 <b>Your Profile</b>",
+        "desc": "Stats, persona, and settings",
+        "buttons": [
+            ("📊 My Profile", "/me"),
+            ("🎭 Switch Persona", "/persona"),
+            ("🗑️ Clear History", "/clear"),
+        ],
+    },
+}
+
+
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Rich Welcome message with Buttons for Shariar Tech Bot."""
+    """Rich Welcome message with Branding Photo for Lucifer."""
     user = update.effective_user
     track_user(user.id)
     track_command("start")
 
     welcome_text, reply_markup = _build_start_menu(user.first_name)
 
-    await update.message.reply_text(
-        text=welcome_text,
-        reply_markup=reply_markup,
-        parse_mode="HTML",
-    )
+    # Resolve character limit for photo captions (default is 1024)
+    # Our welcome_text is well under that limit.
+    
+    photo_path = os.path.join(os.getcwd(), ASSET_PROFILE_PICTURE)
+    
+    if os.path.exists(photo_path):
+        with open(photo_path, 'rb') as photo:
+            await update.message.reply_photo(
+                photo=photo,
+                caption=welcome_text,
+                reply_markup=reply_markup,
+                parse_mode="HTML",
+            )
+    else:
+        # Fallback to text only if the image is missing
+        await update.message.reply_text(
+            text=welcome_text,
+            reply_markup=reply_markup,
+            parse_mode="HTML",
+        )
 
 
+@enforce_moderation()
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Passes user messages or photos to the AI with conversation memory and streaming."""
+    """Main message handler — checks reminder flow, intent detection, then AI chat."""
+    
+    # ── Step 0: Check if user is in reminder text input mode ──
+    if update.message.text and await handle_reminder_text(update, context):
+        return
+
     if not API_STATE.get("groq", True):
         await update.message.reply_text(
             "🤖 Groq AI Chat is currently disabled by the Admin. Please try again later."
@@ -131,6 +197,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if not user_text and not image_bytes:
                 user_text = "Hello!"
 
+    # ── Step 1: Natural Language Intent Detection ──
+    # Only for text messages (not images), try to match known intents
+    if user_text and not image_bytes:
+        intent, intent_args = detect_intent(user_text)
+        if intent:
+            await _dispatch_intent(update, context, intent, intent_args)
+            return
 
     # Typing indicator
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
@@ -278,140 +351,50 @@ async def clear_history_command(update: Update, context: ContextTypes.DEFAULT_TY
 
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle button clicks from the inline keyboard."""
+    """Handle help button clicks from the inline keyboard."""
     query = update.callback_query
     await query.answer()
 
     HELP_MESSAGES = {
-        "help_image": (
-            "🎨 <b>AI Art Generation</b>\n\n"
-            "To generate an image, use:\n"
-            "<code>/image &lt;your prompt&gt;</code>\n\n"
-            "Example: <code>/image a futuristic city</code>"
-        ),
-        "help_find": (
-            "🛒 <b>Daraz Deal Finder</b>\n\n"
-            "To find deals, use:\n"
-            "<code>/find &lt;product&gt;</code>\n\n"
-            "Example: <code>/find gaming mouse</code>"
-        ),
-        "help_weather": (
-            "🌤️ <b>Live Weather Check</b>\n\n"
-            "To check the weather, use:\n"
-            "<code>/weather &lt;city name&gt;</code>\n\n"
-            "Example: <code>/weather Tokyo</code>"
-        ),
-        "help_tts": (
-            "🎙️ <b>Natural Text to Speech</b>\n\n"
-            "Produce clear, neural voice messages:\n\n"
-            "👨 <b>Boy Voice:</b> <code>/say &lt;text&gt;</code>\n"
-            "👩 <b>Girl Voice:</b> <code>/say_as_girl &lt;text&gt;</code>\n\n"
-            "Example: <code>/say আমার নাম লুসিফার</code>"
-        ),
-        "help_translate": (
-            "🌐 <b>Translation</b>\n\n"
-            "Auto-detect language and translate:\n"
-            "<code>/translate &lt;text&gt;</code>\n\n"
-            "Supports ALL languages!\n"
-            "🇧🇩 Bangla → English\n"
-            "🇬🇧 English → Bangla\n"
-            "🇯🇵 Japanese → Bangla + English\n"
-            "...and any other pair!\n\n"
-            "Example: <code>/translate আমি ভালো আছি</code>"
-        ),
-        "help_currency": (
-            "💱 <b>Currency Converter</b>\n\n"
-            "Usage: <code>/convert &lt;amount&gt; &lt;FROM&gt; to &lt;TO&gt;</code>\n\n"
-            "Example: <code>/convert 100 USD to BDT</code>"
-        ),
-        "help_qr": (
-            "📱 <b>QR Code Generator</b>\n\n"
-            "Usage: <code>/qr &lt;text or URL&gt;</code>\n\n"
-            "Example: <code>/qr https://github.com</code>"
-        ),
-        "help_quiz": (
-            "🧩 <b>AI Quiz Game</b>\n\n"
-            "Usage: <code>/quiz &lt;topic&gt;</code>\n\n"
-            "Examples:\n"
-            "• <code>/quiz science</code>\n"
-            "• <code>/quiz bangladesh history</code>\n"
-            "• <code>/quiz programming</code>"
-        ),
-        "help_persona": (
-            "🎭 <b>AI Persona Switcher</b>\n\n"
-            "Change how I respond:\n"
-            "<code>/persona</code> — Show options\n\n"
-            "Available:\n"
-            "🧠 Default | 👨‍🏫 Teacher\n"
-            "😎 Friend | 💻 Coder\n"
-            "🇧🇩 বাংলা শিক্ষক | 😈 Lucifer"
-        ),
-        "help_ocr": (
-            "📄 <b>OCR — Text Extraction</b>\n\n"
-            "Reply to a photo with <code>/ocr</code> to extract text.\n\n"
-            "Supports English and Bangla!"
-        ),
-        "help_download": (
-            "📥 <b>Media Downloader</b>\n\n"
-            "Usage: <code>/download &lt;URL&gt;</code>\n\n"
-            "Download videos/audio from YouTube, Instagram, TikTok, Facebook, and 1000+ other sites.\n\n"
-            "Example: <code>/download https://youtube.com/watch?v=dQw4w9WgXcQ</code>"
-        ),
-        "help_games": (
-            "🎲 <b>AI Interactive Games</b>\n\n"
-            "Usage: <code>/play</code> — Choose a game!\n\n"
-            "Available Games:\n"
-            "• 📖 Word Chain (শব্দের খেলা)\n"
-            "• 🎤 Bangla Antakshari (অন্ত্যাক্ষরী)\n"
-            "• 🛍️ Haat-Bazaar Bargaining (হাট-বাজার)\n\n"
-            "Stop anytime: <code>/stopgame</code>"
-        ),
-        "help_profile": (
-            "📊 <b>User Profile & Stats</b>\n\n"
-            "Usage: <code>/me</code>\n\n"
-            "View your personal statistics, including:\n"
-            "• Your user rank and ID\n"
-            "• Chat memory and active persona\n"
-            "• Quiz scores and accuracy\n"
-            "• Game points and active games"
-        ),
-        "help_news": (
-            "📰 <b>Daily News Digest</b>\n\n"
-            "Usage: <code>/news</code> or <code>/news bn</code>\n\n"
-            "Fetches the latest headlines from BBC World and The Daily Star!"
-        ),
-        "help_sticker": (
-            "🖼️ <b>Sticker Maker</b>\n\n"
-            "Create Telegram stickers instantly for FREE!\n\n"
-            "<b>Option 1:</b> Reply to any photo with <code>/sticker</code>\n"
-            "<b>Option 2:</b> Generate one with AI: <code>/sticker cute baby dragon</code>"
-        ),
         "help_main": (
             "📜 <b>All Commands</b>\n\n"
-            "• /start - Main menu\n"
-            "• /image &lt;prompt&gt; - AI Art\n"
-            "• /find &lt;product&gt; - Daraz Deals\n"
-            "• /weather &lt;city&gt; - Live Weather\n"
-            "• /say &lt;text&gt; - Boy Voice\n"
-            "• /say_as_girl &lt;text&gt; - Girl Voice\n"
-            "• /translate &lt;text&gt; - Translation\n"
-            "• /convert &lt;amount&gt; &lt;FROM&gt; to &lt;TO&gt; - Currency\n"
-            "• /qr &lt;text&gt; - QR Code\n"
-            "• /quiz &lt;topic&gt; - Trivia Game\n"
-            "• /ocr - Text from Image\n"
-            "• /download &lt;url&gt; - Download Media\n"
-            "• /news [bd] - Latest News\n"
-            "• /persona - Switch AI Style\n"
-            "• /play - Interactive Games\n"
-            "• /me - Your Profile &amp; Stats\n"
-            "• /clear - Clear Chat History\n"
-            "• 🎤 Voice Messages - Voice Chat!"
+            "<b>🤖 AI:</b>\n"
+            "• <code>/image</code> — Art Gen\n"
+            "• <code>/persona</code> — AI Style\n"
+            "• <code>/explain</code> — Explain (reply)\n"
+            "• <code>/summarize</code> — Summarize (reply)\n"
+            "• <code>/rewrite</code> — Rewrite (reply)\n\n"
+            "<b>🛠️ Utils:</b>\n"
+            "• <code>/weather</code> — Weather\n"
+            "• <code>/convert</code> — Currency\n"
+            "• <code>/bdt</code> — Quick USD→BDT\n"
+            "• <code>/translate</code> — Translate\n"
+            "• <code>/say</code> / <code>/say_as_girl</code> — TTS\n"
+            "• <code>/qr</code> — QR Code\n"
+            "• <code>/download</code> — Media DL\n"
+            "• <code>/ocr</code> — Text Extract\n"
+            "• <code>/sticker</code> — Sticker Maker\n\n"
+            "<b>🎮 Games:</b>\n"
+            "• <code>/play</code> — AI Games\n"
+            "• <code>/quiz</code> — Trivia\n"
+            "• <code>/vote</code> — Quick Vote\n"
+            "• <code>/poll</code> — Group Poll\n\n"
+            "<b>📱 Local BD:</b>\n"
+            "• <code>/news</code> — Headlines\n"
+            "• <code>/find</code> — Daraz Deals\n"
+            "• <code>/prayer</code> — Prayer Times\n"
+            "• <code>/offers</code> — Mobile Offers\n\n"
+            "<b>⏰ Productivity:</b>\n"
+            "• <code>/remind</code> — Set Reminder\n"
+            "• <code>/myreminders</code> — My Reminders\n\n"
+            "<b>📊 Profile:</b>\n"
+            "• <code>/me</code> — Stats\n"
+            "• <code>/clear</code> — Reset Memory"
         ),
     }
 
     message = HELP_MESSAGES.get(query.data, "Unknown action.")
 
-    # Add a "Back to Menu" button on help messages
     back_button = InlineKeyboardMarkup([
         [InlineKeyboardButton("🔙 মেনুতে ফিরুন | Back to Menu", callback_data="back_to_start")]
     ])
@@ -419,21 +402,134 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.edit_message_text(text=message, parse_mode="HTML", reply_markup=back_button)
 
 
+async def category_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle category navigation button clicks from the /start menu."""
+    query = update.callback_query
+    await query.answer()
+
+    cat_key = query.data  # e.g. "cat_ai"
+    cat = CATEGORY_CONTENT.get(cat_key)
+
+    if not cat:
+        await query.edit_message_text("❌ Unknown category.")
+        return
+
+    text = f"{cat['title']}\n{cat['desc']}\n\n<i>Click a feature to use it:</i>"
+
+    keyboard = []
+    for label, cmd in cat["buttons"]:
+        keyboard.append([InlineKeyboardButton(label, switch_inline_query_current_chat=cmd)])
+
+    keyboard.append([
+        InlineKeyboardButton("🔙 Main Menu", callback_data="back_to_start"),
+        InlineKeyboardButton("📜 All Commands", callback_data="help_main"),
+    ])
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    # Edit caption if it's a photo message, otherwise edit text
+    if query.message.photo:
+        await query.message.edit_caption(caption=text, reply_markup=reply_markup, parse_mode="HTML")
+    else:
+        await query.edit_message_text(text=text, reply_markup=reply_markup, parse_mode="HTML")
+
+
 async def back_to_start_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle 'Back to Menu' button — rebuild the /start menu inline."""
+    """Handle 'Back to Menu' button — rebuild the /start menu with photo."""
     query = update.callback_query
     await query.answer()
 
     user = update.effective_user
     welcome_text, reply_markup = _build_start_menu(user.first_name)
+    
+    photo_path = os.path.join(os.getcwd(), ASSET_PROFILE_PICTURE)
 
-    await query.edit_message_text(
-        text=welcome_text,
-        reply_markup=reply_markup,
-        parse_mode="HTML",
+    if os.path.exists(photo_path):
+        # We delete the old message and send a new one to show the photo correctly
+        # This keeps the flow clean and premium.
+        try:
+            await query.message.delete()
+        except:
+            pass # Old message might have been deleted already
+            
+        with open(photo_path, 'rb') as photo:
+            await context.bot.send_photo(
+                chat_id=update.effective_chat.id,
+                photo=photo,
+                caption=welcome_text,
+                reply_markup=reply_markup,
+                parse_mode="HTML",
+            )
+    else:
+        await query.edit_message_text(
+            text=welcome_text,
+            reply_markup=reply_markup,
+            parse_mode="HTML",
+        )
+
+async def developer_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show developer info and GitHub link."""
+    query = update.callback_query
+    await query.answer()
+    
+    dev_text = (
+        f"👨‍💻 <b>Developer Profile</b>\n\n"
+        f"<b>Name:</b> {DEVELOPER_NAME}\n"
+        f"<b>Role:</b> Lead Architect & Developer\n\n"
+        "Thank you for using Lucifer! This project is a labor of love dedicated to building "
+        "the most intelligent and accessible AI companion for everyone.\n\n"
+        "🚀 <b>Open Source:</b>\n"
+        "Support the development by checking out the source code on GitHub. "
+        "Leave a star if you like this project! ⭐\n\n"
+        f"🔗 <a href='{GITHUB_URL}'>Visit Shariar's GitHub Profile</a>"
     )
+    
+    keyboard = [
+        [InlineKeyboardButton("⭐ Follow on GitHub", url=GITHUB_URL)],
+        [InlineKeyboardButton("🔙 Back to Menu", callback_data="back_to_start")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    # Developers like a clean UI, so we edit the text (or caption if it's a photo)
+    if query.message.photo:
+        await query.message.edit_caption(caption=dev_text, reply_markup=reply_markup, parse_mode="HTML")
+    else:
+        await query.edit_message_text(text=dev_text, reply_markup=reply_markup, parse_mode="HTML")
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Simple help fallback — redirects to /start."""
     await update.message.reply_text("Use /start to see the full menu with all features!")
+
+
+# ── Intent Dispatcher ────────────────────────────────────────
+async def _dispatch_intent(update: Update, context: ContextTypes.DEFAULT_TYPE, intent: str, args: str):
+    """Dispatch a detected intent to the appropriate handler."""
+    # Import handlers lazily to avoid circular imports
+    from handlers.weather import weather_command
+    from handlers.currency import convert_command, bdt_command
+    from handlers.news import news_command
+    from handlers.reminder import remind_command
+    from handlers.prayer import prayer_command
+    from handlers.mobile import mobile_command
+    from handlers.vote import vote_command
+
+    # Simulate context.args from extracted intent args
+    context.args = args.split() if args else []
+
+    intent_map = {
+        "weather": weather_command,
+        "weather_no_args": weather_command,
+        "bdt_rate": bdt_command,
+        "convert": convert_command,
+        "news": news_command,
+        "reminder": remind_command,
+        "prayer": prayer_command,
+        "mobile_offer": mobile_command,
+        "vote": vote_command,
+    }
+
+    handler = intent_map.get(intent)
+    if handler:
+        await handler(update, context)
+    else:
+        logger.warning(f"Intent '{intent}' matched but no handler mapped.")

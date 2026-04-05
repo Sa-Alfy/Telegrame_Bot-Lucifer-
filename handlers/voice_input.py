@@ -5,10 +5,12 @@ from services.ai_chat import transcribe_voice, get_ai_response_stream
 from utils.logger import get_logger
 from utils.format import prepare_telegram_html, clean_markdown_fallback
 from utils.constants import MAX_HISTORY
+from utils.decorators import enforce_moderation
 
 logger = get_logger(__name__)
 
 
+@enforce_moderation()
 async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Handles voice messages:

@@ -13,6 +13,10 @@ A highly advanced, modular, and multi-featured Telegram bot built with Python. L
 | **AI Personas** | `/persona` | Switch the AI's personality (Gen-Z, Professional, Sarcastic, Pirate). |
 | **AI Image Generator** | `/image` | Generate stunning high-res AI art using Stable Diffusion XL (Flux.1). |
 | **OCR Text Extraction** | `/ocr` | Reply to any image to instantly extract all text from it. |
+| **Contextual Tools** | `/explain`, `/summarize` | Reply to a long message with these commands to let the AI process it. |
+| **Smart Rewriter** | `/rewrite` | Reply to a message to rewrite it professionally in Bengali or English. |
+| **Voice Note AI** | `(Voice Message)` | Send a voice note — the bot will transcribe it using Whisper and answer. |
+| **Natural Language** | `(No Command)` | Try "what is the weather in dhaka" or "fetch bdt rate" — intent is auto-detected! |
 
 ### 🛠️ Daily Utilities
 | Feature | Command | Description |
@@ -21,8 +25,10 @@ A highly advanced, modular, and multi-featured Telegram bot built with Python. L
 | **Live Weather** | `/weather <city>` | Check real-time weather, temperature, and forecasts worldwide. |
 | **Daraz Deal Finder** | `/find <product>` | Scrapes and finds the best current product deals on Daraz.com.bd. |
 | **Media Downloader** | `/download <url>` | Instantly download videos/audio from YouTube, TikTok, Facebook, etc. |
+| **Local Prayers** | `/prayer` | View local Islamic prayer times (Waqt) automatically for Bangladesh. |
+| **Telecom Offers** | `/offers` | View the latest Grameenphone, Robi, Airtel, and Banglalink data deals. |
 | **Translation** | `/translate <text>` | Auto-detects and translates any language into English and Bengali. |
-| **Currency Converter** | `/convert` | Real-time live exchange rates between all major global currencies. |
+| **Currency Converter** | `/convert`, `/bdt` | Real-time live exchange rates between all major global currencies. |
 | **QR Code Generator** | `/qr <text>` | Generates an instant, scannable QR code from any link or text. |
 | **Telegram Sticker Maker**| `/sticker` | Convert any photo, or generate new AI images, into Telegram Stickers. |
 
@@ -31,15 +37,19 @@ A highly advanced, modular, and multi-featured Telegram bot built with Python. L
 |:---|:---|:---|
 | **Interactive Minigames** | `/play` | Play AI-driven games like Word Chain, Antakshari, and Bargaining! |
 | **Trivia Quizzes** | `/quiz <topic>` | Generates a 3-question interactive quiz on any topic you want. |
+| **Polling & Voting** | `/vote`, `/poll` | Quickly jumpstart a local group vote or a native Telegram poll. |
+| **Task Reminders** | `/remind`, `/myreminders` | Interactive wizard to set persistent 24/7 task reminders in the cloud. |
 | **Voice Text-To-Speech** | `/say`, `/say_as_girl` | Converts text into high-quality spoken audio (Male or Female). |
 | **User Profiles** | `/me` | Tracks your usage, points, rank, quiz accuracy, and active persona. |
 | **Memory Manager** | `/clear` | Safely erases chat context memory to start a fresh conversation. |
 
 ### ⚙️ Admin & Backend
-- **Global Error Handling:** Smartly truncates text and bypasses API crashes to ensure the bot never hangs.
-- **Admin Debug Panel** (`/debug`): Monitor API health, uptime, and toggle specific module services on/off.
-- **Persistent State Management:** Automatically saves user ranks, chat quotas, and memory using background threads.
-- **Robust Logging:** Implements rotating log files (max 5MB) ensuring stable long-term server deployment.
+- **Interactive Admin Dashboard** (`/admin`): A secure, button-driven UI panel to manage the bot natively without needing code restarts. 
+- **User Moderation:** Natively block/unblock malicious users and bypass/reset their interactive rate limits and cooldowns instantly.
+- **Global Moderation Enforcers:** Toggle "Quiet Mode" (to suppress proactive responses) and "Anti-Spam" globally across the bot.
+- **Dynamic Feature Toggles:** Disable resource-heavy subsystems on the fly (e.g. AI Chat, Image Generation, Downloader, News).
+- **Persistent State Management:** Automatically saves global moderation rules, toggles, ranks, chat quotas, and memory.
+- **Robust Error Handling:** Smartly truncates text and bypasses API crashes to ensure the bot never hangs.
 
 ---
 
@@ -173,6 +183,16 @@ Click Deploy — Koyeb will build and start your bot automatically. Features lik
 - **Media Tools:** `yt-dlp` (Downloads), `edge-tts` (Voices), `Pillow` (Stickers)
 - **Web Parsing:** `BeautifulSoup4`, standard RSS `ElementTree`
 - **Server:** Threaded `HTTPServer` bound to Koyeb Health Checks
+
+---
+
+## 👨‍💻 Developer
+
+**Lucifer** is designed and developed by **Shariar Ahamed**. 
+
+If you find this project useful, feel free to support it by following the developer on GitHub and exploring more open-source projects!
+
+🚀 **GitHub Profile:** [Sa-Alfy](https://github.com/Sa-Alfy)
 
 ---
 

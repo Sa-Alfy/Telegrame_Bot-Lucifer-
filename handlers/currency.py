@@ -3,6 +3,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from services.currency import convert_currency
 from utils.decorators import rate_limit
+from utils.cache import currency_cache, CURRENCY_TTL
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -52,7 +53,15 @@ async def convert_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
 
-    result = await convert_currency(amount, from_currency, to_currency)
+    # Check cache
+    cache_key = f"{amount}_{from_currency}_{to_currency}"
+    cached = currency_cache.get(cache_key)
+    if cached:
+        result = cached
+    else:
+        result = await convert_currency(amount, from_currency, to_currency)
+        if result.get("success"):
+            currency_cache.set(cache_key, result, CURRENCY_TTL)
 
     if result.get("success"):
         text = (
@@ -66,5 +75,47 @@ async def convert_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text(
             f"❌ Conversion failed.\n\n<b>Reason:</b> {result.get('error')}",
+            parse_mode="HTML",
+        )
+
+
+@rate_limit(seconds=3)
+async def bdt_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    /bdt [amount] — Quick USD to BDT conversion.
+    Default: 1 USD if no amount given.
+    """
+    amount = 1.0
+    if context.args:
+        try:
+            amount = float(context.args[0].replace(",", ""))
+        except ValueError:
+            await update.message.reply_text("❌ Invalid amount. Example: <code>/bdt 100</code>", parse_mode="HTML")
+            return
+
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+
+    # Check cache
+    cache_key = f"{amount}_USD_BDT"
+    cached = currency_cache.get(cache_key)
+    if cached:
+        result = cached
+    else:
+        result = await convert_currency(amount, "USD", "BDT")
+        if result.get("success"):
+            currency_cache.set(cache_key, result, CURRENCY_TTL)
+
+    if result.get("success"):
+        text = (
+            f"🇺🇸🇧🇩 <b>USD → BDT Quick Rate</b>\n\n"
+            f"💵 {result['amount']:,.2f} USD\n"
+            f"   ⬇️\n"
+            f"💰 <b>{result['result']:,.2f} BDT</b>\n\n"
+            f"📊 Rate: 1 USD = {result['rate']:.2f} BDT"
+        )
+        await update.message.reply_text(text, parse_mode="HTML")
+    else:
+        await update.message.reply_text(
+            f"❌ Could not fetch rate.\n\n<b>Reason:</b> {result.get('error')}",
             parse_mode="HTML",
         )

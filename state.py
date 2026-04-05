@@ -19,6 +19,20 @@ USER_STATS = {
     "last_reset_date": "",
 }
 
+# Moderation state
+MODERATION_STATE = {
+    "blocked_users": set(),
+    "quiet_mode": False,
+    "anti_spam": True,
+}
+
+FEATURE_FLAGS = {
+    "ai_chat": True,
+    "image_gen": True,
+    "downloader": True,
+    "news": True,
+}
+
 # ── Auto-save logic ──────────────────────────────────────────
 _mutation_count = 0
 _AUTO_SAVE_THRESHOLD = 10  # Save to disk every N mutations
@@ -34,7 +48,7 @@ def _maybe_save():
 
 
 def load_state():
-    global API_STATE, USER_STATS
+    global API_STATE, USER_STATS, MODERATION_STATE, FEATURE_FLAGS
     if os.path.exists(STATE_FILE):
         try:
             with open(STATE_FILE, "r") as f:
@@ -47,6 +61,18 @@ def load_state():
                     for k in ["groq", "pollinations", "daraz"]:
                         if k in saved:
                             API_STATE[k] = saved[k]
+                
+                # Load Moderation state
+                if "moderation" in saved:
+                    mod = saved["moderation"]
+                    MODERATION_STATE["blocked_users"] = set(mod.get("blocked_users", []))
+                    MODERATION_STATE["quiet_mode"] = mod.get("quiet_mode", False)
+                    MODERATION_STATE["anti_spam"] = mod.get("anti_spam", True)
+                
+                # Load Feature Flags
+                if "feature_flags" in saved:
+                    FEATURE_FLAGS.update(saved["feature_flags"])
+
                 # Load stats
                 if "stats" in saved:
                     stats = saved["stats"]
@@ -62,6 +88,12 @@ def save_state():
     try:
         data = {
             "api_state": API_STATE,
+            "feature_flags": FEATURE_FLAGS,
+            "moderation": {
+                "blocked_users": list(MODERATION_STATE["blocked_users"]),
+                "quiet_mode": MODERATION_STATE["quiet_mode"],
+                "anti_spam": MODERATION_STATE["anti_spam"],
+            },
             "stats": {
                 "unique_users": list(USER_STATS["unique_users"]),
                 "command_counts": USER_STATS["command_counts"],

@@ -6,20 +6,17 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from services.image_gen import generate_image_bytes
 from state import API_STATE
-from utils.decorators import rate_limit
+from utils.decorators import rate_limit, api_enabled
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
 
 @rate_limit(seconds=15)
+@api_enabled("image_gen")
 async def generate_image_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Generates an image when the user types /image <prompt>"""
     
-    if not API_STATE.get("pollinations", True):
-        await update.message.reply_text("🎨 Image generation is currently disabled by the Admin. Please try again later.")
-        return
-        
     # Check if the user provided a prompt
     if not context.args:
         await update.message.reply_text(

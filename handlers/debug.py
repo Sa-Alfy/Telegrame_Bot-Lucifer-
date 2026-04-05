@@ -10,6 +10,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from config import Config
 from utils.constants import GROQ_CHAT_MODELS, FLUX_HF_MODEL
+from utils.admin_guard import is_admin
 
 # Record the start time when this module is loaded
 START_TIME = time.time()
@@ -29,7 +30,7 @@ def check_service(url, timeout=5):
 
 async def toggle_api_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Toggles API state based on regex match."""
-    if str(update.effective_user.id) != str(Config.ADMIN_ID):
+    if not is_admin(update.effective_user.id):
         await update.message.reply_text(
             f"⛔ You are not authorized.\n\n"
             f"Your ID: <code>{update.effective_user.id}</code>.\n"
@@ -61,8 +62,7 @@ async def what_type_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     Only accessible by the Admin.
     Usage: /what_type /image or /what_type /text
     """
-    user_id = str(update.effective_user.id)
-    if user_id != Config.ADMIN_ID:
+    if not is_admin(update.effective_user.id):
         await update.message.reply_text("⛔ **Access Denied:** Only the Admin can use this diagnostic command.", parse_mode="Markdown")
         return
 
@@ -104,7 +104,7 @@ async def what_type_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def debug_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Debug command to show bot statistics, system info, and API status."""
-    if str(update.effective_user.id) != str(Config.ADMIN_ID):
+    if not is_admin(update.effective_user.id):
         await update.message.reply_text(
             f"⛔ You are not authorized.\n\n"
             f"Your ID: <code>{update.effective_user.id}</code>.\n"
