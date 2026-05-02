@@ -12,6 +12,7 @@ PERSONA_LABELS = {
     "friend": "😎 Friend (Casual & Fun)",
     "coder": "💻 Coder (Senior Engineer)",
     "bangla_tutor": "🇧🇩 বাংলা শিক্ষক (Bangla Tutor)",
+    "language_mentor": "🇩🇪 German Lehrer (A1-A2 Study)",
     "lucifer": "😈 Lucifer (Devilishly Honest)",
 }
 

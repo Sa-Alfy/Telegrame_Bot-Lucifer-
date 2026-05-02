@@ -58,9 +58,11 @@ weather_cache = SimpleCache()   # TTL: 300s (5 min)
 news_cache = SimpleCache()      # TTL: 600s (10 min)
 currency_cache = SimpleCache()  # TTL: 120s (2 min)
 prayer_cache = SimpleCache()    # TTL: 3600s (1 hr)
+daraz_cache = SimpleCache()     # TTL: 600s (10 min)
 
 # Default TTLs
 WEATHER_TTL = 300
 NEWS_TTL = 600
 CURRENCY_TTL = 120
 PRAYER_TTL = 3600
+DARAZ_TTL = 600

@@ -1,5 +1,7 @@
 import os
 import threading
+import time
+import requests
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update
 from telegram.ext import (
@@ -13,7 +15,7 @@ from telegram.ext import (
 from config import Config
 from handlers.basic import start_command, handle_message, button_callback, back_to_start_callback, help_command, clear_history_command, developer_callback, category_callback
 from handlers.image_gen import generate_image_command
-from handlers.daraz_handler import find_deal_command
+from handlers.daraz_handler import find_deal_command, daraz_callback
 from handlers.weather import weather_command
 from handlers.tts import say_male_command, say_female_command
 from handlers.debug import debug_command, toggle_api_command, what_type_command
@@ -65,6 +67,29 @@ def start_health_server():
     server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
     logger.info(f"Health check server started on port {port}")
     server.serve_forever()
+
+
+def keep_alive_pinger():
+    """Pings the service itself every 10 minutes to prevent Render from sleeping."""
+    # Wait for the server to actually start
+    time.sleep(10)
+    
+    url = os.environ.get("RENDER_EXTERNAL_URL")
+    if not url:
+        logger.warning("RENDER_EXTERNAL_URL environment variable not set. Self-pinging disabled.")
+        return
+
+    logger.info(f"Self-pinging service started for: {url}")
+    while True:
+        try:
+            # Ping the health check endpoint
+            response = requests.get(url, timeout=30)
+            logger.info(f"Self-ping successful: {response.status_code}")
+        except Exception as e:
+            logger.error(f"Self-ping failed: {e}")
+        
+        # Wait for 10 minutes (600 seconds)
+        time.sleep(600)
 
 
 # ============================================================
@@ -119,9 +144,13 @@ def main():
         logger.error("No token found in .env file!")
         return
 
-    # Start the health check server in a background thread (for Koyeb)
+    # Start the health check server in a background thread (for Koyeb/Render)
     health_thread = threading.Thread(target=start_health_server, daemon=True)
     health_thread.start()
+
+    # Start self-pinger to keep Render awake
+    pinger_thread = threading.Thread(target=keep_alive_pinger, daemon=True)
+    pinger_thread.start()
 
     # Build the application and include the Menu setup
     app = Application.builder().token(Config.TELEGRAM_TOKEN).post_init(post_init).build()
@@ -182,6 +211,8 @@ def main():
     app.add_handler(create_universal_handler(["bdt"], bdt_command))
 
     # --- 3. UI & Callback Handlers ---
+    # Daraz callback
+    app.add_handler(CallbackQueryHandler(daraz_callback, pattern=r"^daraz:"))
     # Category navigation (must come before other callbacks)
     app.add_handler(CallbackQueryHandler(category_callback, pattern=r"^cat_"))
     # Admin callback
