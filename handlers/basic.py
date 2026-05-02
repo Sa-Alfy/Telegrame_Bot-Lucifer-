@@ -602,6 +602,15 @@ async def result_action_callback(update: Update, context: ContextTypes.DEFAULT_T
             reply_markup=get_home_button()
         )
         
+    elif action == "result_action_deals_retry":
+        context.user_data["mode"] = "SEARCH"
+        await query.message.reply_text(
+            "🛒 <b>Daraz Shopping Mode</b>\n\n"
+            "What would you like to search for today?",
+            parse_mode="HTML",
+            reply_markup=get_home_button()
+        )
+        
     else:
         # Fallback acknowledgment
         await query.message.reply_text("Action registered.")

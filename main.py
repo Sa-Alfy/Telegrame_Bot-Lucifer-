@@ -15,7 +15,7 @@ from telegram.ext import (
 from config import Config
 from handlers.basic import start_command, handle_message, button_callback, back_to_start_callback, help_command, clear_history_command, developer_callback, nav_callback, result_action_callback
 from handlers.image_gen import generate_image_command
-from handlers.daraz_handler import find_deal_command, daraz_callback
+from handlers.daraz_handler import find_deal_command
 from handlers.weather import weather_command
 from handlers.tts import say_male_command, say_female_command
 from handlers.debug import debug_command, toggle_api_command, what_type_command
@@ -214,8 +214,6 @@ def main():
     app.add_handler(create_universal_handler(["bdt"], bdt_command))
 
     # --- 3. UI & Callback Handlers ---
-    # Daraz callback
-    app.add_handler(CallbackQueryHandler(daraz_callback, pattern=r"^daraz:"))
     # Navigation & Category callback (Phase 1 Redesign)
     app.add_handler(CallbackQueryHandler(nav_callback, pattern=r"^nav_"))
     # Admin callback
