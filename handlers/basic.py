@@ -553,6 +553,22 @@ async def developer_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await query.edit_message_text(text=dev_text, reply_markup=reply_markup, parse_mode="HTML")
 
 
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Fallback help command — dispatches the interactive help menu."""
+    user = update.effective_user
+    welcome_text, reply_markup = _build_start_menu(user.first_name)
+    
+    # We send the start menu but could also jump directly to help_main if desired.
+    # For now, let's keep it simple to fix the build.
+    await update.message.reply_text(
+        "📖 <b>Lucifer Help Menu</b>\nUse /start to explore all features or pick a topic below:",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("📖 Open Help Directory", callback_data="help_main")],
+            [InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_start")]
+        ]),
+        parse_mode="HTML"
+    )
+
 async def result_action_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle standardized result buttons (Retry, Edit, etc.)."""
     query = update.callback_query
