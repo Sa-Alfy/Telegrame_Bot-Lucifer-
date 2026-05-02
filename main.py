@@ -177,7 +177,7 @@ def main():
                 
             return await func(update, context)
             
-        return MessageHandler(filters.Regex(pattern) & filters.CHAT, wrapper)
+        return MessageHandler(filters.Regex(pattern) & filters.ALL, wrapper)
 
     # --- 1 & 2. Universal Bilingual Command Handlers ---
     app.add_handler(create_universal_handler(["start", "শুরু"], start_command))
