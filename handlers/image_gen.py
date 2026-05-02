@@ -5,9 +5,11 @@ import functools
 from telegram import Update
 from telegram.ext import ContextTypes
 from services.image_gen import generate_image_bytes
-from state import API_STATE
+from state import API_STATE, FEATURE_FLAGS
 from utils.decorators import rate_limit, api_enabled
 from utils.logger import get_logger
+from handlers.basic import get_result_buttons
+from utils.ux import ux_card
 
 logger = get_logger(__name__)
 
@@ -35,18 +37,23 @@ async def generate_image_command(update: Update, context: ContextTypes.DEFAULT_T
     prompt = " ".join(context.args)
     
     # Send a placeholder message to show progress
-    status_msg = await update.message.reply_text("🎨 Generating your image... please wait a moment.")
+    status_msg = await update.message.reply_text("⏳ <b>Lucifer:</b> Initiating generation...", parse_mode="HTML")
     
     # Visual feedback in Telegram (shows "uploading photo...")
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="upload_photo")
     
     try:
+        # Step 2 update
+        await status_msg.edit_text("🎨 <b>Lucifer:</b> Synthesizing pixels...", parse_mode="HTML")
+        
         # We process the generation in a separate thread so the bot doesn't freeze
         loop = asyncio.get_running_loop()
         image_bytes = await loop.run_in_executor(
             None, 
             functools.partial(generate_image_bytes, prompt)
         )
+        
+        await status_msg.edit_text("📦 <b>Lucifer:</b> Finalizing artwork...", parse_mode="HTML")
         
         # Save the image bytes to a temporary file
         with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
@@ -57,7 +64,9 @@ async def generate_image_command(update: Update, context: ContextTypes.DEFAULT_T
         with open(tmp_path, 'rb') as photo:
             await update.message.reply_photo(
                 photo=photo,
-                caption=f"✨ Prompt: {prompt}"
+                caption=ux_card(f"✨ <b>Prompt:</b> {prompt}", title="🎨 AI Generation"),
+                reply_markup=get_result_buttons("image"),
+                parse_mode="HTML"
             )
         
         # Safely delete the temp file — ignore if Windows still has a lock on it

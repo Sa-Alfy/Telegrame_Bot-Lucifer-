@@ -7,6 +7,8 @@ from services.daraz_service import get_best_daraz_deal
 from state import API_STATE
 from utils.decorators import rate_limit
 from utils.logger import get_logger
+from handlers.basic import get_result_buttons
+from utils.ux import ux_card
 from utils.cache import daraz_cache, DARAZ_TTL
 
 logger = get_logger(__name__)
@@ -50,13 +52,16 @@ async def find_deal_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     query = " ".join(context.args)
     sent_message = await update.message.reply_text(
-        f"🔍 Searching Daraz for <b>'{query}'</b>...\n"
-        f"⏳ Analyzing best options...",
+        f"🔍 <b>Lucifer:</b> Searching Daraz for '{query}'...",
         parse_mode="HTML"
     )
+    
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
 
     loop = asyncio.get_running_loop()
     result = await loop.run_in_executor(None, get_best_daraz_deal, query)
+
+    await sent_message.edit_text(f"📊 <b>Lucifer:</b> Analyzing best options for '{query}'...", parse_mode="HTML")
 
     if not result.get("success"):
         await sent_message.edit_text(f"😔 Error: {result.get('error', 'Unknown error.')}")
@@ -73,6 +78,7 @@ async def find_deal_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     session_data = {"query": query, "results": products}
     daraz_cache.set(session_id, session_data, DARAZ_TTL)
 
+    await sent_message.edit_text(f"✅ <b>Lucifer:</b> Finalizing results for '{query}'...", parse_mode="HTML")
     await render_main_screen(sent_message, session_id, session_data)
 
 # ----------------- SCREEN RENDERERS ----------------- #
@@ -80,13 +86,13 @@ async def find_deal_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def render_main_screen(message, session_id: str, session_data: dict, edit_media=False):
     """SCREEN 1 - Smart Result (Best Pick)"""
     p = session_data["results"][0]
-    
-    caption = (
-        f"📱 **{p.get('_label', 'Budget Pick')}**\n\n"
-        f"**{p.get('name', 'Unknown product')[:80]}...**\n"
+    # Wrap in UX card
+    caption_html = ux_card(
+        f"📱 <b>{p.get('_label', 'Budget Pick')}</b>\n\n"
+        f"<b>{p.get('name', 'Unknown product')[:80]}...</b>\n"
         f"💰 {p.get('price', 'N/A')}   ⭐ {p.get('rating', 0)}\n\n"
-        f"💡 _Highest scored option based on relevance and price._\n\n"
-        f"👆 _Tap below to continue:_"
+        f"💡 <i>Highest scored option based on relevance and price.</i>",
+        title="🛒 Smart Selection"
     )
     
     image_url = p.get('image', '') or FALLBACK_IMAGE
@@ -97,16 +103,18 @@ async def render_main_screen(message, session_id: str, session_data: dict, edit_
             InlineKeyboardButton("📊 Compare", callback_data=f"daraz:compare:{session_id}:0"),
             InlineKeyboardButton("🔄 More Options", callback_data=f"daraz:list:{session_id}:0")
         ],
-        [InlineKeyboardButton("❌ Cancel", callback_data=f"daraz:cancel:{session_id}:0")]
     ]
+    # Standardized interaction row (Phase 3)
+    standard_kb = get_result_buttons("deals").inline_keyboard
+    keyboard.extend(standard_kb)
 
-    media = InputMediaPhoto(media=image_url, caption=caption, parse_mode="Markdown")
+    media = InputMediaPhoto(media=image_url, caption=caption_html, parse_mode="HTML")
     
     try:
         if edit_media:
             await message.edit_media(media=media, reply_markup=InlineKeyboardMarkup(keyboard))
         else:
-            await message.reply_photo(photo=image_url, caption=caption, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+            await message.reply_photo(photo=image_url, caption=caption_html, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
             try:
                 await message.delete()
             except Exception:
@@ -114,7 +122,7 @@ async def render_main_screen(message, session_id: str, session_data: dict, edit_
     except Exception as e:
         logger.error(f"Error rendering main screen: {e}")
         try:
-            await message.edit_caption(caption=caption, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+            await message.edit_caption(caption=caption_html, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
         except Exception:
             pass
 
@@ -218,6 +226,8 @@ async def render_detail_screen(message, session_id: str, session_data: dict, ind
         [InlineKeyboardButton("📊 Compare", callback_data=f"daraz:compare:{session_id}:{index}")],
         [InlineKeyboardButton("🔙 Back to List", callback_data=f"daraz:list:{session_id}:{page}")]
     ]
+    # Standardized interaction row (Phase 3)
+    kb.extend(get_result_buttons("deals").inline_keyboard)
     
     media = InputMediaPhoto(media=image_url, caption=caption, parse_mode="Markdown")
     try:

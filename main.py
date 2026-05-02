@@ -13,7 +13,7 @@ from telegram.ext import (
     ContextTypes,
 )
 from config import Config
-from handlers.basic import start_command, handle_message, button_callback, back_to_start_callback, help_command, clear_history_command, developer_callback, category_callback
+from handlers.basic import start_command, handle_message, button_callback, back_to_start_callback, help_command, clear_history_command, developer_callback, nav_callback, result_action_callback
 from handlers.image_gen import generate_image_command
 from handlers.daraz_handler import find_deal_command, daraz_callback
 from handlers.weather import weather_command
@@ -216,8 +216,8 @@ def main():
     # --- 3. UI & Callback Handlers ---
     # Daraz callback
     app.add_handler(CallbackQueryHandler(daraz_callback, pattern=r"^daraz:"))
-    # Category navigation (must come before other callbacks)
-    app.add_handler(CallbackQueryHandler(category_callback, pattern=r"^cat_"))
+    # Navigation & Category callback (Phase 1 Redesign)
+    app.add_handler(CallbackQueryHandler(nav_callback, pattern=r"^nav_"))
     # Admin callback
     app.add_handler(CallbackQueryHandler(admin_callback, pattern=r"^admin_"))
     # Persona callback
@@ -242,6 +242,8 @@ def main():
     app.add_handler(CallbackQueryHandler(developer_callback, pattern=r"^developer_info$"))
     # Generic help button callback
     app.add_handler(CallbackQueryHandler(button_callback, pattern=r"^help_"))
+    # Result action callbacks (Phase 3 Standardization)
+    app.add_handler(CallbackQueryHandler(result_action_callback, pattern=r"_(retry|edit|continue)$"))
 
     # --- 4. Voice Message Handler ---
     app.add_handler(MessageHandler(filters.VOICE | filters.AUDIO, handle_voice_message))

@@ -47,4 +47,10 @@ def prepare_telegram_html(text: str) -> str:
     # Headers: ## Header
     text = re.sub(r'^#{1,6}\s*(.*)$', r'<b>\1</b>', text, flags=re.MULTILINE)
 
+    # Bullet lists: * item or - item
+    text = re.sub(r'^[*-]\s+(.*)$', r'• \1', text, flags=re.MULTILINE)
+
+    # Numbered lists: 1. item
+    text = re.sub(r'^(\d+)\.\s+(.*)$', r'\1. \2', text, flags=re.MULTILINE)
+
     return text
