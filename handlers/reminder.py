@@ -6,7 +6,8 @@ Supports quick time buttons, natural language input, and reminder management.
 from datetime import datetime, timedelta, timezone
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-from services.reminder_service import reminder_store, parse_natural_time, BST
+from services.reminder_service import reminder_store, parse_natural_time
+from utils.time_utils import BST
 from utils.decorators import rate_limit
 from utils.logger import get_logger
 from state import track_command
@@ -152,6 +153,12 @@ async def handle_reminder_text(update: Update, context: ContextTypes.DEFAULT_TYP
     context.user_data.pop("rem_awaiting_text", None)
 
     reminder_text = update.message.text.strip()
+    
+    # 🚨 FIX 2.7: Allow escape
+    if reminder_text.lower() in ["cancel", "stop", "exit"] or reminder_text.startswith("/"):
+        await update.message.reply_text("🚫 Reminder setup cancelled.")
+        return True
+
     if not reminder_text:
         await update.message.reply_text("❌ Reminder text cannot be empty. Please try again with /remind")
         return True

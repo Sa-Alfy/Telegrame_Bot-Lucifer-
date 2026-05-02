@@ -17,6 +17,12 @@ logger = get_logger(__name__)
 async def generate_image_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Generates an image when the user types /image <prompt>"""
     
+    if not FEATURE_FLAGS.get("image_gen", True):
+        await update.message.reply_text(
+            "🎨 Image Generation is currently disabled by the Admin."
+        )
+        return
+    
     # Check if the user provided a prompt
     if not context.args:
         await update.message.reply_text(

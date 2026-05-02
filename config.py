@@ -24,6 +24,7 @@ _OPTIONAL = {
     "IMAGE_GEN_KEY": (Config.IMAGE_GEN_KEY, "AI Image Generation"),
     "OPENWEATHERMAP_API_KEY": (Config.OPENWEATHERMAP_API_KEY, "Weather"),
     "ADMIN_ID": (Config.ADMIN_ID, "Admin Debug Panel"),
+    "GEMINI_API_KEY": (Config.GEMINI_API_KEY, "Vision AI (OCR, Photo Analysis)"),
 }
 
 for name, value in _REQUIRED.items():

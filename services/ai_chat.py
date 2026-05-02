@@ -1,5 +1,6 @@
 import base64
 import json
+import asyncio
 from groq import AsyncGroq
 from config import Config
 from utils.logger import get_logger
@@ -124,22 +125,26 @@ SEARCH_TOOLS = [
     }
 ]
 
-def perform_web_search(query: str) -> str:
-    """Performs a web search using duckduckgo and returns top 3 results as JSON string."""
-    try:
-        logger.info(f"Performing web search for: {query}")
-        results = DDGS().text(query, max_results=3)
-        if not results:
-            return "No results found on the internet."
-        
-        formatted_results = []
-        for r in results:
-            formatted_results.append(f"Title: {r.get('title')}\nSnippet: {r.get('body')}\nSource: {r.get('href')}")
-        
-        return "\n\n---\n\n".join(formatted_results)
-    except Exception as e:
-        logger.error(f"DDG Search Error: {e}")
-        return f"Search failed: {e}"
+async def perform_web_search(query: str) -> str:
+    """Runs DDGS search in a thread executor to avoid blocking the event loop."""
+    def _sync_search():
+        try:
+            logger.info(f"Performing web search for: {query}")
+            results = DDGS().text(query, max_results=3)
+            if not results:
+                return "No results found on the internet."
+            
+            formatted = []
+            for r in results:
+                formatted.append(f"Title: {r.get('title')}\nSnippet: {r.get('body')}\nSource: {r.get('href')}")
+            
+            return "\n\n---\n\n".join(formatted)
+        except Exception as e:
+            logger.error(f"DDG Search Error: {e}")
+            return f"Search failed: {e}"
+
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, _sync_search)
 
 
 # ── AI Generation Functions ──────────────────────────────────────
@@ -213,6 +218,7 @@ async def get_ai_response(
         # 🛡️ RESILIENCE LOOP: Try Groq models
         last_chat_err = ""
         message = None
+        working_model_id = None
         for model_id in GROQ_CHAT_MODELS:
             for trim_attempt in range(3):
                 try:
@@ -231,6 +237,7 @@ async def get_ai_response(
                     )
 
                     message = response.choices[0].message
+                    working_model_id = model_id
                     if message.tool_calls:
                         pass
                     else:
@@ -284,7 +291,7 @@ async def get_ai_response(
                 if tool_call.function.name == "search_internet":
                     try:
                         args = json.loads(tool_call.function.arguments)
-                        search_result = perform_web_search(args["query"])
+                        search_result = await perform_web_search(args["query"])
                     except Exception as e:
                         search_result = f"Search tool failed: {e}"
 
@@ -296,14 +303,19 @@ async def get_ai_response(
                     })
             
             # Second call to get final answer
+            if working_model_id is None:
+                return f"❌ No working model available for tool response. Error: `{last_chat_err}`"
+
             response = await client.chat.completions.create(
-                model=model_id,
+                model=working_model_id,
                 messages=messages,
                 temperature=0.7,
                 max_tokens=current_max_tokens,
             )
             return response.choices[0].message.content
 
+        if message is None:
+            return f"❌ All AI models are currently unavailable. Last error: `{last_chat_err}`"
         return message.content
 
     except Exception as e:
@@ -338,6 +350,7 @@ async def get_ai_response_stream(
         # 🛡️ RESILIENCE LOOP: Try streaming models
         last_stream_err = ""
         stream = None
+        working_model_id = None
         for model_id in GROQ_CHAT_MODELS:
             for trim_attempt in range(3):
                 try:
@@ -355,6 +368,7 @@ async def get_ai_response_stream(
                         tools=SEARCH_TOOLS,
                         tool_choice="auto",
                     )
+                    working_model_id = model_id
                     break  # Model worked!
                 except Exception as e:
                     err_str = str(e)
@@ -433,7 +447,7 @@ async def get_ai_response_stream(
                     try:
                         args = json.loads(tool_call["function"]["arguments"])
                         query = args.get("query", "")
-                        search_result = perform_web_search(query)
+                        search_result = await perform_web_search(query)
                     except Exception as e:
                         search_result = f"Search failed: {e}"
                         
@@ -446,8 +460,12 @@ async def get_ai_response_stream(
                     })
             
             # 4. Perform the second (final) completion stream
+            if working_model_id is None:
+                yield f"❌ No working model available for tool response. Error: `{last_stream_err}`"
+                return
+
             final_stream = await client.chat.completions.create(
-                model=model_id,
+                model=working_model_id,
                 messages=messages,
                 temperature=0.7,
                 max_tokens=current_max_tokens,
@@ -501,7 +519,7 @@ async def transcribe_voice(audio_bytes: bytes) -> str:
         transcription = await client.audio.transcriptions.create(
             file=audio_file,
             model="whisper-large-v3-turbo",
-            language="bn",
+            language=None, # Auto-detect (supports multi-language)
             response_format="text",
         )
 

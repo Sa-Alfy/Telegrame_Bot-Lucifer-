@@ -1,4 +1,5 @@
 import re
+import html
 
 def clean_markdown_fallback(text: str) -> str:
     """Cleans markdown symbols so plain text fallback looks neat."""
@@ -11,16 +12,13 @@ def clean_markdown_fallback(text: str) -> str:
     # Remove single * used for italic/bold occasionally, safely
     # This might remove bullet points, but it's okay for clean fallback
     return text
-
 def prepare_telegram_html(text: str) -> str:
     """Converts common Markdown from LLM into Telegram-safe HTML."""
     if not text:
         return ""
     
-    # Escape HTML special characters first (Telegram HTML requires escaping <, >, and &)
-    # But wait, if we escape them, code blocks that use < or > will be safe, 
-    # but we must do this BEFORE adding our own HTML tags.
-    text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    # Escape HTML special characters first
+    text = html.escape(text)
 
     # Code blocks: ```language\ncode\n```
     # Telegram supports <pre><code class="language="...">...</code></pre>

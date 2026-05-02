@@ -223,7 +223,7 @@ def download_media(url: str, format_id: str, media_type: str = "video") -> dict:
                 "preferredquality": "192",
             }]
         else:
-            ydl_opts["format"] = "bestaudio/best"
+            ydl_opts["format"] = "bestaudio/best/bestvideo+bestaudio/best"
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:

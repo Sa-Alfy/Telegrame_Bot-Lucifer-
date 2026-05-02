@@ -31,6 +31,7 @@ bot.log
 *.log
 *.log.*
 state.json
+reminders.json
 
 # ========================
 # DEBUG & TEMP FILES

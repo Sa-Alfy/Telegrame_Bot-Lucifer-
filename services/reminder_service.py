@@ -14,8 +14,7 @@ logger = get_logger(__name__)
 
 REMINDERS_FILE = "reminders.json"
 
-# Bangladesh Standard Time (UTC+6)
-BST = timezone(timedelta(hours=6))
+from utils.time_utils import BST
 
 
 class ReminderStore:

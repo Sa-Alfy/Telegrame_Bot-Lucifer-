@@ -23,8 +23,8 @@ def rate_limit(seconds: int = 15):
             
             if remaining > 0:
                 await update.message.reply_text(
-                    f"⏳ Please wait **{int(remaining)}s** before using this again.",
-                    parse_mode="Markdown"
+                    f"⏳ Please wait <b>{int(remaining)}s</b> before using this again.",
+                    parse_mode="HTML"
                 )
                 return
             
@@ -67,9 +67,9 @@ def adaptive_rate_limit(base_seconds: int = 10, max_seconds: int = 120, escalati
                 # Increment violations
                 context.user_data[key_violations] = violations + 1
                 await update.message.reply_text(
-                    f"⏳ Slow down! Wait **{int(remaining)}s** before using this again.\n"
-                    f"{'⚠️ Repeated spam will increase your cooldown!' if violations < 3 else '🚫 You are on extended cooldown due to spam.'}",
-                    parse_mode="Markdown"
+                    f"⏳ Slow down! Wait <b>{int(remaining)}s</b> before using this again.\n"
+                    f"{'⚠️ Repeated spam will increase your cooldown!' if violations < 3 else '🚫 You are on extended cooldown.'}",
+                    parse_mode="HTML"
                 )
                 return
 
@@ -161,9 +161,12 @@ def enforce_moderation():
             
             # Anti-Spam check
             if MODERATION_STATE.get("anti_spam", True):
-                # Anti-spam is usually handled via existing @rate_limit, 
-                # but we could enforce a generic global 1-second limit here if needed.
-                pass
+                key = f"_global_antispam_{user_id}"
+                last = context.user_data.get(key, 0)
+                now = time.time()
+                if now - last < 1.0:
+                    return  # Silent drop — too fast
+                context.user_data[key] = now
                 
             return await func(update, context, *args, **kwargs)
         return wrapper

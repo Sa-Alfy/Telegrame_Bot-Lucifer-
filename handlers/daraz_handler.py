@@ -22,9 +22,11 @@ def generate_pros_cons(rating: float) -> str:
     elif rating >= 3.0:
         return "👍 **Pros:**\n• Average tier option\n\n👎 **Cons:**\n• Mixed reviews\n• Build quality varies"
     elif rating > 0:
-        return "👍 **Pros:**\n• Budget-level pricing\n\n👎 **Cons:**\n• Low overall ratings\n• Higher risk of issues"
+        text = "👍 **Pros:**\n• Budget-level pricing\n\n👎 **Cons:**\n• Low overall ratings\n• Higher risk of issues"
     else:
-        return "⚠️ _No detailed reviews available yet._"
+        text = "⚠️ _No detailed reviews available yet._"
+    
+    return f"{text}\n\n<i>(Simulated by AI based on rating)</i>"
 
 @rate_limit(seconds=10)
 async def find_deal_command(update: Update, context: ContextTypes.DEFAULT_TYPE):

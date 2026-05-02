@@ -164,6 +164,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
+    if not FEATURE_FLAGS.get("ai_chat", True):
+        await update.message.reply_text(
+            "💬 AI Chat is currently disabled by the Admin. Please try again later."
+        )
+        return
+
     track_command("ai_chat")
 
     image_bytes = None

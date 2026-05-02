@@ -191,8 +191,9 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup = InlineKeyboardMarkup(keyboard)
         
     elif data == "admin_sys_clear_cache":
-        context.user_data.clear() # Clear admin's cache at least, not possible to clear all easily without loop
-        text = "✅ Cleared your user data cache."
+        count = len(context.application.user_data)
+        context.application.user_data.clear()
+        text = f"✅ Cleared session cache for all {count} users."
         keyboard = [[InlineKeyboardButton("🔙 Back", callback_data="admin_system_tools")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
 

@@ -10,3 +10,4 @@ httpx
 duckduckgo-search
 google-genai
 yt-dlp
+Pillow
