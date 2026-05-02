@@ -8,7 +8,7 @@ from services.image_gen import generate_image_bytes
 from state import API_STATE, FEATURE_FLAGS
 from utils.decorators import rate_limit, api_enabled
 from utils.logger import get_logger
-from handlers.basic import get_result_buttons
+from handlers.basic import get_image_buttons
 from utils.ux import ux_card
 
 logger = get_logger(__name__)
@@ -35,6 +35,9 @@ async def generate_image_command(update: Update, context: ContextTypes.DEFAULT_T
         
     # Join ingredients into a single prompt string
     prompt = " ".join(context.args)
+    
+    # Save the prompt for the Retry functionality
+    context.user_data["last_image_prompt"] = prompt
     
     # Send a placeholder message to show progress
     status_msg = await update.message.reply_text("⏳ <b>Lucifer:</b> Initiating generation...", parse_mode="HTML")
@@ -65,7 +68,7 @@ async def generate_image_command(update: Update, context: ContextTypes.DEFAULT_T
             await update.message.reply_photo(
                 photo=photo,
                 caption=ux_card(f"✨ <b>Prompt:</b> {prompt}", title="🎨 AI Generation"),
-                reply_markup=get_result_buttons("image"),
+                reply_markup=get_image_buttons(),
                 parse_mode="HTML"
             )
         

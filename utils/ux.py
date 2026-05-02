@@ -4,7 +4,7 @@ def branded_footer():
     """Consistent attribution footer for Lucifer."""
     return f"\n\n⚡ <i>Lucifer Bot | Developed by {DEVELOPER_NAME}</i>"
 
-def ux_card(body: str, title: str = None, footer: str = None):
+def ux_card(body: str, title: str = None, footer: str = None, show_branding: bool = False):
     """
     Wraps content in a premium visual frame.
     """
@@ -16,7 +16,7 @@ def ux_card(body: str, title: str = None, footer: str = None):
     
     if footer:
         card += f"\n━━━━━━━━━━━━━━━━━━\n{footer}"
-    else:
+    elif show_branding:
         card += branded_footer()
         
     return card

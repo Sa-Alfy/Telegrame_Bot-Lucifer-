@@ -96,18 +96,22 @@ NAV_CONTENT = {
     },
 }
 
-def get_result_buttons(mode_prefix: str):
-    """Standardized 2x2 grid for result interaction."""
+def get_home_button():
+    """Returns a minimal inline keyboard with just a Home button to reduce clutter."""
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🏠 Home", callback_data="back_to_start")]
+    ])
+
+def get_image_buttons():
+    """Returns the specific action buttons for Image Generation."""
     return InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("🔄 Retry", callback_data=f"{mode_prefix}_retry"),
-            InlineKeyboardButton("✍️ Edit Input", callback_data=f"{mode_prefix}_edit"),
+            InlineKeyboardButton("🔄 Retry", callback_data="result_action_image_retry"),
+            InlineKeyboardButton("✍️ Edit Input", callback_data="result_action_image_edit")
         ],
-        [
-            InlineKeyboardButton("➡ Continue", callback_data=f"{mode_prefix}_continue"),
-            InlineKeyboardButton("🏠 Home", callback_data="back_to_start"),
-        ]
+        [InlineKeyboardButton("🏠 Home", callback_data="back_to_start")]
     ])
+
 
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -337,13 +341,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await sent_message.edit_text(
                     card_text, 
                     parse_mode="HTML",
-                    reply_markup=get_result_buttons("chat")
+                    reply_markup=get_home_button()
                 )
             except Exception:
                 try:
                     await sent_message.edit_text(
                         clean_markdown_fallback(display_text),
-                        reply_markup=get_result_buttons("chat")
+                        reply_markup=get_home_button()
                     )
                 except Exception:
                     pass
@@ -574,16 +578,33 @@ async def result_action_callback(update: Update, context: ContextTypes.DEFAULT_T
     query = update.callback_query
     await query.answer()
     
-    data = query.data
-    action = data.split("_")[-1] # retry, edit, continue
+    action = query.data
     
-    if action == "retry":
-        # Simply prompt to send input again (or we could store last input in user_data)
-        await query.message.reply_text("🔄 Retrying... Please send your last message again.")
-    elif action == "edit":
-        await query.message.reply_text("✍️ Okay, send me your revised input!")
-    elif action == "continue":
-        await query.message.reply_text("➡ What would you like to add or do next?")
+    if action == "result_action_image_retry":
+        prompt = context.user_data.get("last_image_prompt")
+        if not prompt:
+            await query.message.reply_text("I forgot what your last prompt was. Please type it again.")
+            return
+            
+        await query.message.reply_text(f"Retrying image generation for: {prompt}")
+        from handlers.image_gen import generate_image_command
+        # Trigger the image generation with the saved prompt
+        context.args = prompt.split()
+        await generate_image_command(update, context)
+        
+    elif action == "result_action_image_edit":
+        # Entering Image Gen mode automatically prompts for a new input
+        context.user_data["mode"] = "IMAGE_GEN"
+        await query.message.reply_text(
+            "🎨 <b>Image Editor Mode</b>\n\n"
+            "Please type your new image prompt below:",
+            parse_mode="HTML",
+            reply_markup=get_home_button()
+        )
+        
+    else:
+        # Fallback acknowledgment
+        await query.message.reply_text("Action registered.")
 
 
 # ── Intent Dispatcher ────────────────────────────────────────

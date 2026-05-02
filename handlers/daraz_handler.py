@@ -7,7 +7,7 @@ from services.daraz_service import get_best_daraz_deal
 from state import API_STATE
 from utils.decorators import rate_limit
 from utils.logger import get_logger
-from handlers.basic import get_result_buttons
+from handlers.basic import get_home_button
 from utils.ux import ux_card
 from utils.cache import daraz_cache, DARAZ_TTL
 
@@ -105,7 +105,7 @@ async def render_main_screen(message, session_id: str, session_data: dict, edit_
         ],
     ]
     # Standardized interaction row (Phase 3)
-    standard_kb = get_result_buttons("deals").inline_keyboard
+    standard_kb = get_home_button().inline_keyboard
     keyboard.extend(standard_kb)
 
     media = InputMediaPhoto(media=image_url, caption=caption_html, parse_mode="HTML")
@@ -227,7 +227,7 @@ async def render_detail_screen(message, session_id: str, session_data: dict, ind
         [InlineKeyboardButton("🔙 Back to List", callback_data=f"daraz:list:{session_id}:{page}")]
     ]
     # Standardized interaction row (Phase 3)
-    kb.extend(get_result_buttons("deals").inline_keyboard)
+    kb.extend(get_home_button().inline_keyboard)
     
     media = InputMediaPhoto(media=image_url, caption=caption, parse_mode="Markdown")
     try:
