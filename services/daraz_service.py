@@ -104,7 +104,7 @@ def extract_product_data(item: dict) -> dict:
     }
 
 
-def filter_and_sort_products(items: list, query: str, max_results: int = 8):
+def filter_and_sort_products(items: list, query: str, max_results: int = 30):
     """
     Advanced ranking engine using weighted relevance, seller quality, and price variance.
     Returns up to max_results products sorted for optimal display.
@@ -195,29 +195,47 @@ def filter_and_sort_products(items: list, query: str, max_results: int = 8):
     # Filter out zero-relevance items (completely unrelated)
     candidates = [c for c in candidates if c['_relevance'] > 0] or scored_items[:max_results]
 
-    final_picks = []
+    curated = []   # The 5 badged picks for page 0
+    used = set()   # Track picked items by identity
+
+    def _id(item):
+        return item.get('url', '') or item.get('name', '')
 
     if candidates:
-        # 1. Budget Pick (cheapest among relevant)
         price_sorted = sorted([c for c in candidates if c['_price_val'] > 0], key=lambda x: x['_price_val'])
+
+        # 1. Absolute Cheapest
         if price_sorted:
-            budget = price_sorted[0]
-            budget['_label'] = '💰 Budget Pick'
-            final_picks.append(budget)
+            p = price_sorted[0]
+            p['_label'] = '💸 Absolute Cheapest'
+            curated.append(p)
+            used.add(_id(p))
 
-        # 2. Best Match (highest rank score)
-        best_match = sorted(candidates, key=lambda x: x['_rank_score'], reverse=True)[0]
-        if best_match not in final_picks:
-            best_match['_label'] = '🏆 Best Match'
-            final_picks.append(best_match)
+        # 2. Best Value Budget (2nd cheapest, not duplicate)
+        for p in price_sorted[1:]:
+            if _id(p) not in used:
+                p['_label'] = '💰 Best Value Budget'
+                curated.append(p)
+                used.add(_id(p))
+                break
 
-        # 3. Top Quality (best rating + reviews combo)
-        best_quality = sorted(candidates, key=lambda x: x['_quality'], reverse=True)[0]
-        if best_quality not in final_picks:
-            best_quality['_label'] = '⭐ Top Quality'
-            final_picks.append(best_quality)
+        # 3. Best Overall Match (highest composite rank)
+        for p in sorted(candidates, key=lambda x: x['_rank_score'], reverse=True):
+            if _id(p) not in used:
+                p['_label'] = '🏆 Best Overall Match'
+                curated.append(p)
+                used.add(_id(p))
+                break
 
-        # 4. Best Seller (highest sold count)
+        # 4. Highest Rated (best quality score)
+        for p in sorted(candidates, key=lambda x: x['_quality'], reverse=True):
+            if _id(p) not in used:
+                p['_label'] = '⭐ Highest Rated'
+                curated.append(p)
+                used.add(_id(p))
+                break
+
+        # 5. Best Seller (highest sold count)
         def get_sold_num(item):
             s = str(item.get('sold_count', '0'))
             try:
@@ -227,21 +245,36 @@ def filter_and_sort_products(items: list, query: str, max_results: int = 8):
             except:
                 return 0
 
-        best_seller = sorted(candidates, key=get_sold_num, reverse=True)[0]
-        if best_seller not in final_picks and get_sold_num(best_seller) > 0:
-            best_seller['_label'] = '🔥 Best Seller'
-            final_picks.append(best_seller)
-
-        # 5+. Fill remaining slots from top-ranked
-        for item in sorted(candidates, key=lambda x: x['_rank_score'], reverse=True):
-            if item not in final_picks:
-                idx = len(final_picks) + 1
-                item['_label'] = f'📦 Option {idx}'
-                final_picks.append(item)
-            if len(final_picks) >= max_results:
+        for p in sorted(candidates, key=get_sold_num, reverse=True):
+            if _id(p) not in used and get_sold_num(p) > 0:
+                p['_label'] = '🔥 Best Seller'
+                curated.append(p)
+                used.add(_id(p))
                 break
 
-    return final_picks
+        # If we couldn't fill 5 unique curated, pad from top-ranked
+        for p in sorted(candidates, key=lambda x: x['_rank_score'], reverse=True):
+            if len(curated) >= 5:
+                break
+            if _id(p) not in used:
+                p['_label'] = f'📦 Option {len(curated) + 1}'
+                curated.append(p)
+                used.add(_id(p))
+
+    # Build the overflow list (all remaining candidates for pagination)
+    overflow = []
+    idx = len(curated) + 1
+    for p in sorted(scored_items, key=lambda x: x['_rank_score'], reverse=True):
+        if _id(p) not in used:
+            p['_label'] = f'📦 Option {idx}'
+            overflow.append(p)
+            used.add(_id(p))
+            idx += 1
+            if idx > max_results:
+                break
+
+    # Return curated first, then overflow — caller slices by page
+    return curated + overflow
 
 
 def get_best_daraz_deal(query: str):
