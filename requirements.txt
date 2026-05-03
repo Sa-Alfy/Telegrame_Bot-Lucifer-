@@ -11,3 +11,4 @@ duckduckgo-search
 google-genai
 yt-dlp
 Pillow
+google-api-core
