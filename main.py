@@ -162,22 +162,27 @@ def main():
         Creates a handler that catches /command, !command, and /command@botname.
         Automatically fixes context.args for the original functions.
         """
-        # Matches /cmd or !cmd followed by optional @botname
-        pattern = r"^[/\!](" + "|".join(commands) + r")(@\w+)?(?:\s+|$)"
+        # Matches optional @botname, then / or !, then command, then optional @botname
+        pattern = r"^(?:@\w+\s+)?[/\!](" + "|".join(commands) + r")(?:\s*@\w+)?(?:\s+|$)"
+        compiled_pattern = re.compile(pattern, re.IGNORECASE)
         
         @enforce_moderation()
         async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if not update.message or not update.message.text:
                 return
             
-            # Populate args identically to CommandHandler if not already present
+            # Populate args identically to CommandHandler but ignoring the prefixes/suffixes
             if context.args is None:
-                parts = update.message.text.split()
-                context.args = parts[1:]
+                match = compiled_pattern.match(update.message.text)
+                if match:
+                    args_text = update.message.text[match.end():].strip()
+                    context.args = args_text.split() if args_text else []
+                else:
+                    context.args = []
                 
             return await func(update, context)
             
-        return MessageHandler(filters.Regex(pattern) & filters.ALL, wrapper)
+        return MessageHandler(filters.Regex(compiled_pattern) & filters.ALL, wrapper)
 
     # --- 1 & 2. Universal Bilingual Command Handlers ---
     app.add_handler(create_universal_handler(["start", "শুরু"], start_command))
